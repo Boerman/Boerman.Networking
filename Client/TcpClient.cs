@@ -124,7 +124,7 @@ namespace Boerman.TcpLib.Client
                 _state.WorkSocket.Disconnect(false);
                 _state.WorkSocket.Dispose();
             }
-            catch (ObjectDisposedException ex)
+            catch (ObjectDisposedException)
             {
 
             }

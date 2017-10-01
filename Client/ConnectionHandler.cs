@@ -14,7 +14,7 @@ namespace Boerman.TcpLib.Client
                 {
                     action(param);
                 }
-                catch (ObjectDisposedException ex)
+                catch (ObjectDisposedException)
                 {
                     //Logger.Warn(ex);
                     // I guess theh object should've been disposed. Try it.
@@ -42,7 +42,7 @@ namespace Boerman.TcpLib.Client
                             break;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     //Logger.Error(ex);
 
@@ -54,7 +54,7 @@ namespace Boerman.TcpLib.Client
                     Start();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //Logger.Fatal(ex);
 

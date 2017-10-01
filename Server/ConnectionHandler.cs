@@ -22,7 +22,7 @@ namespace Boerman.TcpLib.Server
                 {
                     action(param);
                 }
-                catch (ObjectDisposedException ex)
+                catch (ObjectDisposedException)
                 {
                     //Logger.Warn(ex);
                     
@@ -37,7 +37,7 @@ namespace Boerman.TcpLib.Server
                         RaiseExceptionEvent(stateObject);
                     }
                 }
-                catch (InvalidOperationException ex)
+                catch (InvalidOperationException)
                 {
                     //Logger.Warn(ex);
                     
@@ -79,19 +79,19 @@ namespace Boerman.TcpLib.Server
                             break;
                     }
                 }
-                catch (NullReferenceException ex)
+                catch (NullReferenceException)
                 {
                     //Logger.Fatal(ex);
                     
                     // If this happens we're really far away! Restart the socket listener!
                     Restart();
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     //Logger.Error(ex);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 //Logger.Fatal(ex);
 

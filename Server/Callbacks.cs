@@ -166,7 +166,7 @@ namespace Boerman.TcpLib.Server
                         RaiseDisconnectEvent(stateObject);
                         RaiseTimeoutEvent(stateObject);
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
                         // To catch objectdisposedexceptions
                     }

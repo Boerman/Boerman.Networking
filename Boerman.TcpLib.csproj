@@ -12,12 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Boerman.TcpLib.1.0.1.69.nupkg" />
-    <None Remove="Boerman.TcpLib.1.0.2.90.nupkg" />
-    <None Remove="Boerman.TcpLib.userprefs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Boerman.Core" Version="2.0.0" />
   </ItemGroup>
 </Project>

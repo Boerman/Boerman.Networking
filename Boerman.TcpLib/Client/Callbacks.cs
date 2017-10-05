@@ -65,8 +65,8 @@ namespace Boerman.TcpLib.Client
 
                     if (_clientSettings.ReconnectOnDisconnect)
                     {
-                        Stop();
-                        Start();
+                        Close();
+                        Open();
                     }
 
                     return;
@@ -87,13 +87,13 @@ namespace Boerman.TcpLib.Client
                     var type = typeof(TReceive);
                     if (type == typeof(String))
                     {
-                        OnReceiveEvent(strParts[0] + _clientSettings.Splitter as TReceive);
+                        InvokeOnReceiveEvent(strParts[0] + _clientSettings.Splitter as TReceive, _clientSettings.EndPoint);
                     }
                     else
                     {
                         // Convert it to the specific object.
                         var obj = ObjectDeserializer<TReceive>.Deserialize(Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
-                        OnReceiveEvent(obj);
+                        InvokeOnReceiveEvent(obj, _clientSettings.EndPoint);
                     }
 
                     state.ReceiveBuffer = new byte[state.ReceiveBufferSize];

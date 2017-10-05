@@ -19,7 +19,7 @@ namespace Boerman.TcpLib.Client
         where TReceive : class
     {
         private StateObject _state;
-
+        
         private readonly ClientSettings _clientSettings;
 
         private readonly ManualResetEvent _isConnected = new ManualResetEvent(false);
@@ -28,34 +28,44 @@ namespace Boerman.TcpLib.Client
         private bool _isRunning;
         private bool _isShuttingDown;
 
+        [Obsolete]
         public TcpClient()
         {
             _clientSettings = new ClientSettings
             {
                 EndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 36700),
-                Listening  = false,
                 Splitter   = "\r\n",
                 Timeout    = 1020000
             };
         }
 
-        // EVENTS //
-        public event OnReceiveEventHandler ReceiveEvent;
-        public event OnSendEventHandler SendEvent;
-        public event OnConnectEventHandler ConnectEvent;
-        public event OnDisconnectEventHandler DisconnectEvent;
+        public TcpClient(IPEndPoint endpoint)
+        {
+            _clientSettings = new ClientSettings
+            {
+                EndPoint = endpoint,
+                Splitter = "\r\n",
+                Timeout = 1020000
+            };
+        }
 
-        public delegate void OnReceiveEventHandler(TReceive data);
-        public delegate void OnSendEventHandler();
-        public delegate void OnConnectEventHandler();
-        public delegate void OnDisconnectEventHandler();
+        // EVENTS //
+        //public event OnReceiveEventHandler ReceiveEvent;
+        //public event OnSendEventHandler SendEvent;
+        //public event OnConnectEventHandler ConnectEvent;
+        //public event OnDisconnectEventHandler DisconnectEvent;
+
+        //public delegate void OnReceiveEventHandler(TReceive data);
+        //public delegate void OnSendEventHandler();
+        //public delegate void OnConnectEventHandler();
+        //public delegate void OnDisconnectEventHandler();
 
         public TcpClient(ClientSettings settings)
         {
             _clientSettings = settings;
         }
 
-        public void Start()
+        public void Open()
         {
             try
             {
@@ -87,7 +97,7 @@ namespace Boerman.TcpLib.Client
                 _isRunning = true;
                 _isShuttingDown = false;
 
-                ConnectEvent?.Invoke();
+                InvokeOnConnectEvent(_clientSettings.EndPoint);
                 
                 _state.WorkSocket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback,
                     _state);
@@ -97,16 +107,16 @@ namespace Boerman.TcpLib.Client
                 switch (ex.NativeErrorCode)
                 {
                     case 10054: // An existing connection was forcibly closed by the remote host
-                        Stop();
-                        Start();
+                        Close();
+                        Open();
                         break;
                     default:
                         throw;
                 }
             }
         }
-
-        public void Stop()
+        
+        public void Close()
         {
             try
             {
@@ -124,10 +134,6 @@ namespace Boerman.TcpLib.Client
                 _state.WorkSocket.Disconnect(false);
                 _state.WorkSocket.Dispose();
             }
-            catch (ObjectDisposedException)
-            {
-
-            }
             catch (SocketException ex)
             {
                 if (ex.ErrorCode == 10038)
@@ -142,6 +148,10 @@ namespace Boerman.TcpLib.Client
                 {
                     throw;
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                // We can just ignore this one :)
             }
         }
 
@@ -184,9 +194,6 @@ namespace Boerman.TcpLib.Client
 
                     return;
                 }
-
-                // Dropping connections shouldn't be a really big issue...
-                // _isConnected.WaitOne();
                 
                 _state.OutboundMessages.TryDequeue(out _state.OutboundBuffer);
 
@@ -202,8 +209,8 @@ namespace Boerman.TcpLib.Client
                     {
                         case 10054: // An existing connection was forcibly closed by the remote host
                             _isSending.Set(); // Otherwise the program will wait indefinitely.
-                            Stop();
-                            Start();
+                            Close();
+                            Open();
                             break;
                         default:
                             throw;
@@ -214,13 +221,40 @@ namespace Boerman.TcpLib.Client
                 _isSending.WaitOne();
             }
         }
+
+
+        // Some obsolete methods
+        [Obsolete]
+        public void Start()
+        {
+            Open();
+        }
+
+        [Obsolete]
+        public void Stop()
+        {
+            Close();
+        }
+    }
+
+    public class TcpClient : TcpClient<string, string>
+    {
+        public TcpClient(IPEndPoint endpoint) : base(endpoint)
+        {
+            
+        }
+
+        public TcpClient(ClientSettings settings) : base (settings)
+        {
+            
+        }
     }
 
     public class ClientSettings
     {
         public EndPoint EndPoint { get; set; }
         public string Splitter { get; set; }
-        public bool Listening { get; set; }
+        //public bool Listening { get; set; }
         public int Timeout { get; set; }
         public bool ReconnectOnDisconnect { get; set; }
     }

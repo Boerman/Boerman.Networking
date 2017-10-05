@@ -1,7 +1,7 @@
 
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boerman.TcpLib", "Boerman.TcpLib.csproj", "{DC109CCB-C34D-477E-A465-75896818AB84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boerman.TcpLib", "Boerman.TcpLib/Boerman.TcpLib.csproj", "{DC109CCB-C34D-477E-A465-75896818AB84}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

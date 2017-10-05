@@ -35,7 +35,8 @@ namespace Boerman.TcpLib.Client
             {
                 EndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 36700),
                 Splitter   = "\r\n",
-                Timeout    = 1020000
+                Timeout    = 1020000,
+                ReconnectOnDisconnect = false
             };
         }
 
@@ -45,26 +46,19 @@ namespace Boerman.TcpLib.Client
             {
                 EndPoint = endpoint,
                 Splitter = "\r\n",
-                Timeout = 1020000
+                Timeout = 1020000,
+                ReconnectOnDisconnect = false
             };
         }
-
-        // EVENTS //
-        //public event OnReceiveEventHandler ReceiveEvent;
-        //public event OnSendEventHandler SendEvent;
-        //public event OnConnectEventHandler ConnectEvent;
-        //public event OnDisconnectEventHandler DisconnectEvent;
-
-        //public delegate void OnReceiveEventHandler(TReceive data);
-        //public delegate void OnSendEventHandler();
-        //public delegate void OnConnectEventHandler();
-        //public delegate void OnDisconnectEventHandler();
 
         public TcpClient(ClientSettings settings)
         {
             _clientSettings = settings;
         }
 
+        /// <summary>
+        /// Open the connection to a remote endpoint
+        /// </summary>
         public void Open()
         {
             try
@@ -107,15 +101,21 @@ namespace Boerman.TcpLib.Client
                 switch (ex.NativeErrorCode)
                 {
                     case 10054: // An existing connection was forcibly closed by the remote host
-                        Close();
-                        Open();
+                        if (_clientSettings.ReconnectOnDisconnect)
+                        {
+                            Close();
+                            Open();
+                        }
                         break;
                     default:
                         throw;
                 }
             }
         }
-        
+
+        /// <summary>
+        /// Close the connection to a remote endpoint
+        /// </summary>
         public void Close()
         {
             try
@@ -133,6 +133,8 @@ namespace Boerman.TcpLib.Client
                 _state.WorkSocket.Shutdown(SocketShutdown.Both);
                 _state.WorkSocket.Disconnect(false);
                 _state.WorkSocket.Dispose();
+
+                InvokeOnDisconnectEvent(_clientSettings.EndPoint);
             }
             catch (SocketException ex)
             {
@@ -209,8 +211,12 @@ namespace Boerman.TcpLib.Client
                     {
                         case 10054: // An existing connection was forcibly closed by the remote host
                             _isSending.Set(); // Otherwise the program will wait indefinitely.
-                            Close();
-                            Open();
+
+                            if (_clientSettings.ReconnectOnDisconnect)
+                            {
+                                Close();
+                                Open();
+                            }
                             break;
                         default:
                             throw;
@@ -254,7 +260,6 @@ namespace Boerman.TcpLib.Client
     {
         public EndPoint EndPoint { get; set; }
         public string Splitter { get; set; }
-        //public bool Listening { get; set; }
         public int Timeout { get; set; }
         public bool ReconnectOnDisconnect { get; set; }
     }

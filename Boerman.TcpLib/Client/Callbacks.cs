@@ -60,7 +60,6 @@ namespace Boerman.TcpLib.Client
                 // We may as well back off if no connection is available.
                 if (!state.WorkSocket.IsConnected())
                 {
-                    //Logger.Warn("Client socket not connected during receive. Socket is being disposed.");
                     state.WorkSocket.Dispose(); // Bug: When the client is stopped using the Stop method this may be called faster then the stop method can do.
 
                     if (_clientSettings.ReconnectOnDisconnect)
@@ -73,9 +72,7 @@ namespace Boerman.TcpLib.Client
                 }
 
                 int bytesRead = state.WorkSocket.EndReceive(result);
-
-                // if (bytesRead <= 0) return;  // The return can prevent the client from listening.
-
+                
                 state.InboundStringBuilder.Append(Encoding.GetEncoding(Constants.Encoding).GetString(state.ReceiveBuffer, 0, bytesRead));
                 string content = state.InboundStringBuilder.ToString();
 

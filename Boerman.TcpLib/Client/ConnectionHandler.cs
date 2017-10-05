@@ -27,8 +27,11 @@ namespace Boerman.TcpLib.Client
                     switch (ex.NativeErrorCode)
                     {
                         case 10054: // An existing connection was forcibly closed by the remote host
-                            Close();
-                            Open();
+                            if (_clientSettings.ReconnectOnDisconnect)
+                            {
+                                Close();
+                                Open();
+                            }
                             break;
                         case 10061:
                             // No connection could be made because the target machine actively refused it. Do nuthin'

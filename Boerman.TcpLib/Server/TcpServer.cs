@@ -47,20 +47,20 @@ namespace Boerman.TcpLib.Server
             if (_serverSettings.Listening) Run();
         }
 
-        // EVENTS //
-        public event OnReceiveEventHandler              ReceiveEvent;
-        public event OnSendEventHandler                 SendEvent;
-        public event OnConnectEventHandler              ConnectEvent;
-        public event OnDisconnectEventHandler           DisconnectEvent;
-        public event OnTimeoutEventHandler              TimeoutEvent;
-        public event OnExceptionEventHandler            ExceptionEvent;
+        //// EVENTS //
+        //public event OnReceiveEventHandler              ReceiveEvent;
+        //public event OnSendEventHandler                 SendEvent;
+        //public event OnConnectEventHandler              ConnectEvent;
+        //public event OnDisconnectEventHandler           DisconnectEvent;
+        //public event OnTimeoutEventHandler              TimeoutEvent;
+        //public event OnExceptionEventHandler            ExceptionEvent;
 
-        public delegate void OnReceiveEventHandler      (StateObject state, TReceive content);
-        public delegate void OnSendEventHandler         (StateObject state);
-        public delegate void OnConnectEventHandler      (StateObject state);
-        public delegate void OnDisconnectEventHandler   (StateObject state);
-        public delegate void OnTimeoutEventHandler      (StateObject state);
-        public delegate void OnExceptionEventHandler    (StateObject state);
+        //public delegate void OnReceiveEventHandler      (StateObject state, TReceive content);
+        //public delegate void OnSendEventHandler         (StateObject state);
+        //public delegate void OnConnectEventHandler      (StateObject state);
+        //public delegate void OnDisconnectEventHandler   (StateObject state);
+        //public delegate void OnTimeoutEventHandler      (StateObject state);
+        //public delegate void OnExceptionEventHandler    (StateObject state);
 
         // FUNCTIONS //
         public void Run()

@@ -24,8 +24,6 @@ namespace Boerman.TcpLib.Server
                 }
                 catch (ObjectDisposedException)
                 {
-                    //Logger.Warn(ex);
-                    
                     if (param.AsyncState is StateObject)
                     {
                         // TcpClient is already closed. All we gotta do is remove all references. (Aaand the garbage man will clean the shit behind our backs.)
@@ -33,14 +31,11 @@ namespace Boerman.TcpLib.Server
                         
                         _handlers.TryRemove(state.Guid, out StateObject stateObject);
 
-                        RaiseDisconnectEvent(stateObject);
-                        RaiseExceptionEvent(stateObject);
+                        InvokeOnDisconnectEvent(stateObject.Endpoint);
                     }
                 }
                 catch (InvalidOperationException)
                 {
-                    //Logger.Warn(ex);
-                    
                     if (param.AsyncState is StateObject)
                     {
                         // Tcp client isn't connected (We'd better clean up the resources.)
@@ -49,19 +44,14 @@ namespace Boerman.TcpLib.Server
                         
                         _handlers.TryRemove(state.Guid, out StateObject stateObject);
 
-                        RaiseDisconnectEvent(stateObject);
-                        RaiseExceptionEvent(stateObject);
+                        InvokeOnDisconnectEvent(stateObject.Endpoint);
                     }
                 }
                 catch (SocketException ex)
                 {
-                    //Logger.Warn(ex);
-
                     switch (ex.NativeErrorCode)
                     {
                         case 10054: // Force disconnect
-                            //if (param.AsyncState is Socket)   // This is the main socket we use to listen to incoming connections. We're screwed if we kill this one.
-
                             if (param.AsyncState is StateObject)
                             {
                                 var state = (StateObject) param.AsyncState;
@@ -70,31 +60,22 @@ namespace Boerman.TcpLib.Server
                                 StateObject stateObject;
                                 _handlers.TryRemove(state.Guid, out stateObject);
 
-                                RaiseDisconnectEvent(stateObject);
-                                RaiseExceptionEvent(stateObject);
+                                InvokeOnDisconnectEvent(stateObject.Endpoint);
                             }
-                            break;
-                        default:
-
                             break;
                     }
                 }
                 catch (NullReferenceException)
                 {
-                    //Logger.Fatal(ex);
-                    
                     // If this happens we're really far away! Restart the socket listener!
                     Restart();
                 }
                 catch (Exception)
                 {
-                    //Logger.Error(ex);
                 }
             }
             catch (Exception)
             {
-                //Logger.Fatal(ex);
-
                 Environment.Exit(1);        // MAYDAY MAYDAY MAYDAY
             }
         }

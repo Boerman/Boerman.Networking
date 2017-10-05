@@ -1,62 +1,46 @@
-﻿using Boerman.TcpLib.Shared;
+﻿using System;
+using System.Net;
+using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Server
 {
     partial class TcpServer<TSend, TReceive>
     {
-        protected virtual void RaiseReceiveEvent(StateObject state, TReceive content)
-        {
-            //Logger.Debug("OnReceiveEvent");
-            //Logger.Trace(state);
-            //Logger.Trace(content);
-
-            OnReceiveEventHandler handler = ReceiveEvent;
-            handler?.Invoke(state, content);
-        }
-
-        protected virtual void RaiseSendEvent(StateObject state)
-        {
-            //Logger.Debug("OnSendEvent");
-            //Logger.Trace(state);
-
-            OnSendEventHandler handler = SendEvent;
-            handler?.Invoke(state);
-        }
-
-        protected virtual void RaiseConnectEvent(StateObject state)
-        {
-            //Logger.Debug("OnConnectEvent");
-            //Logger.Trace(state);
-
-            OnConnectEventHandler handler = ConnectEvent;
-            handler?.Invoke(state);
-        }
-
-        protected virtual void RaiseDisconnectEvent(StateObject state)
-        {
-            //Logger.Debug("OnDisconnectEvent");
-            //Logger.Trace(state);
-
-            OnDisconnectEventHandler handler = DisconnectEvent;
-            handler?.Invoke(state);
-        }
+        public event EventHandler<OnReceiveEventArgs<TReceive>> OnReceive;
+        public event EventHandler<OnDisconnectEventArgs> OnDisconnect;
+        public event EventHandler<OnConnectEventArgs> OnConnect;
+        public event EventHandler<OnTimeoutEventArgs> OnTimeout;
         
-        protected virtual void RaiseTimeoutEvent(StateObject state)
+        public void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
         {
-            //Logger.Debug("OnTimeoutEvent");
-            //Logger.Trace(state);
-
-            OnTimeoutEventHandler handler = TimeoutEvent;
-            handler?.Invoke(state);
+            try
+            {
+                OnReceive?.Invoke(this, new OnReceiveEventArgs<TReceive>(data, endpoint));
+            } catch { }
         }
 
-        protected virtual void RaiseExceptionEvent(StateObject state)
+        public void InvokeOnDisconnectEvent(EndPoint endpoint)
         {
-            //Logger.Debug("OnExceptionEvent");
-            //Logger.Trace(state);
+            try
+            {
+                OnDisconnect?.Invoke(this, new OnDisconnectEventArgs(endpoint));
+            } catch { }
+        }
 
-            OnExceptionEventHandler handler = ExceptionEvent;
-            handler?.Invoke(state);
+        public void InvokeOnConnectEvent(EndPoint endpoint)
+        {
+            try
+            {
+                OnConnect?.Invoke(this, new OnConnectEventArgs(endpoint));
+            } catch { }
+        }
+
+        public void InvokeOnTimeoutEvent(EndPoint endpoint)
+        {
+            try
+            {
+                OnTimeout?.Invoke(this, new OnTimeoutEventArgs(endpoint));
+            } catch { }
         }
     }
 }

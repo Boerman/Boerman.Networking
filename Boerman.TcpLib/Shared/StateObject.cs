@@ -27,8 +27,10 @@ namespace Boerman.TcpLib.Shared
         public DateTime LastReceived = DateTime.UtcNow;
         public DateTime LastSend = DateTime.UtcNow;
         
-        public IPAddress IpAddress;
-        public int Port;
+        //public IPAddress IpAddress;
+        //public int Port;
+
+        public EndPoint Endpoint;
 
         public int ExpectedBytesCount = 0;
 

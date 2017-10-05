@@ -34,14 +34,13 @@ namespace Boerman.TcpLib.Server
                 {
                     WorkSocket = handler,
                     Guid       = stateGuid,
-                    IpAddress  = rep.Address,
-                    Port       = rep.Port
+                    Endpoint   = rep
                 });
 
                 StateObject state;
                 _handlers.TryGetValue(stateGuid, out state);
 
-                RaiseConnectEvent(state);
+                InvokeOnConnectEvent(state.Endpoint);
 
                 // Strange situation when this happens, but it basically means that the connection is closed 
                 // before the software had any change of accepting it (it's possible)
@@ -69,9 +68,7 @@ namespace Boerman.TcpLib.Server
                 Socket handler = state.WorkSocket;
                 
                 int bytesRead = handler.EndReceive(result);
-
-                //if (bytesRead <= 0) return;
-
+                
                 state.InboundStringBuilder.Append(Encoding.GetEncoding(Constants.Encoding).GetString(state.ReceiveBuffer, 0, bytesRead));
                 string content = state.InboundStringBuilder.ToString();
 
@@ -86,7 +83,7 @@ namespace Boerman.TcpLib.Server
                         var type = typeof(TReceive);
                         if (type == typeof(String))
                         {
-                            RaiseReceiveEvent(state, strParts[0] + _serverSettings.Splitter as TReceive);
+                            InvokeOnReceiveEvent(strParts[0] + _serverSettings.Splitter as TReceive, state.Endpoint);
                         }
                         else
                         {
@@ -95,7 +92,7 @@ namespace Boerman.TcpLib.Server
                                 ObjectDeserializer<TReceive>.Deserialize(
                                     Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
 
-                            RaiseReceiveEvent(state, obj);
+                            InvokeOnReceiveEvent(obj, state.Endpoint);
                         }
 
                         state.ReceiveBuffer = new byte[state.ReceiveBufferSize];
@@ -115,7 +112,7 @@ namespace Boerman.TcpLib.Server
                      */
                     if (content.Length >= state.ExpectedBytesCount)
                     {
-                        RaiseReceiveEvent(state, content.Substring(0, state.ExpectedBytesCount) as TReceive);
+                        InvokeOnReceiveEvent(content.Substring(0, state.ExpectedBytesCount) as TReceive, state.Endpoint);
                         content = content.Remove(0, state.ExpectedBytesCount);
 
                         // Reset the byte count
@@ -129,7 +126,7 @@ namespace Boerman.TcpLib.Server
                 if (handler.IsConnected())
                 {
                     // Wait until more data is received.
-                    var receiveEvent = handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
                         ReadCallback, state);
                 }
             }, ar);
@@ -145,7 +142,6 @@ namespace Boerman.TcpLib.Server
             {
                 var client = result.AsyncState as StateObject;
                 client?.WorkSocket.EndSend(result);
-                RaiseSendEvent(client);
             }, ar);
         }
 
@@ -163,8 +159,8 @@ namespace Boerman.TcpLib.Server
                         
                         _handlers.TryRemove(handler.Key, out StateObject stateObject);
 
-                        RaiseDisconnectEvent(stateObject);
-                        RaiseTimeoutEvent(stateObject);
+                        InvokeOnDisconnectEvent(stateObject.Endpoint);
+                        InvokeOnTimeoutEvent(stateObject.Endpoint);
                     }
                     catch (Exception)
                     {

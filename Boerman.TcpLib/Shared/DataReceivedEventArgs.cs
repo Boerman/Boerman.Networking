@@ -2,9 +2,9 @@
 
 namespace Boerman.TcpLib.Shared
 {
-    public class OnReceiveEventArgs<T>
+    public class DataReceivedEventArgs<T>
     {
-        public OnReceiveEventArgs(T data, EndPoint endpoint)
+        public DataReceivedEventArgs(T data, EndPoint endpoint)
         {
             Endpoint = endpoint;
             Data = data;

@@ -84,13 +84,13 @@ namespace Boerman.TcpLib.Client
                     var type = typeof(TReceive);
                     if (type == typeof(String))
                     {
-                        InvokeOnReceiveEvent(strParts[0] + _clientSettings.Splitter as TReceive, _clientSettings.EndPoint);
+                        InvokeDataReceivedEvent(strParts[0] + _clientSettings.Splitter as TReceive, _clientSettings.EndPoint);
                     }
                     else
                     {
                         // Convert it to the specific object.
                         var obj = ObjectDeserializer<TReceive>.Deserialize(Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
-                        InvokeOnReceiveEvent(obj, _clientSettings.EndPoint);
+                        InvokeDataReceivedEvent(obj, _clientSettings.EndPoint);
                     }
 
                     state.ReceiveBuffer = new byte[state.ReceiveBufferSize];

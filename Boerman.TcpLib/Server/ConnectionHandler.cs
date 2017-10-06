@@ -31,7 +31,7 @@ namespace Boerman.TcpLib.Server
 
                         _handlers.TryRemove(state.Guid, out StateObject stateObject);
 
-                        InvokeOnDisconnectEvent(stateObject.Endpoint);
+                        InvokeDisconnectedEvent(stateObject.Endpoint);
                     }
                 }
                 catch (InvalidOperationException)
@@ -44,7 +44,7 @@ namespace Boerman.TcpLib.Server
 
                         _handlers.TryRemove(state.Guid, out StateObject stateObject);
 
-                        InvokeOnDisconnectEvent(stateObject.Endpoint);
+                        InvokeDisconnectedEvent(stateObject.Endpoint);
                     }
                 }
                 catch (SocketException ex)
@@ -60,7 +60,7 @@ namespace Boerman.TcpLib.Server
                                 StateObject stateObject;
                                 _handlers.TryRemove(state.Guid, out stateObject);
 
-                                InvokeOnDisconnectEvent(stateObject.Endpoint);
+                                InvokeDisconnectedEvent(stateObject.Endpoint);
                             }
                             break;
                     }

@@ -3,9 +3,9 @@ using System.Net;
 
 namespace Boerman.TcpLib.Shared
 {
-    public class OnConnectEventArgs
+    public class ConnectedEventArgs
     {
-        public OnConnectEventArgs(EndPoint endpoint)
+        public ConnectedEventArgs(EndPoint endpoint)
         {
             Endpoint = endpoint;
             TimeStamp = DateTime.UtcNow;

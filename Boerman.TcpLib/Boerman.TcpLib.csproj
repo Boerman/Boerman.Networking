@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <Copyright>Copyright (C) Corstian Boerman 2017</Copyright>
     <PackageProjectUrl>https://github.com/Boerman/Boerman.TcpLib</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Boerman/Boerman.TcpLib</RepositoryUrl>
@@ -12,7 +12,7 @@
     <PackageId>Boerman.TcpLib</PackageId>
     <Authors>Corstian Boerman</Authors>
     <Company>the Boerman Company</Company>
-    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>

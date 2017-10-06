@@ -29,7 +29,7 @@ namespace Boerman.TcpLib.Server
 
                 _handlers.TryAdd(state.Guid, state);
 
-                InvokeOnConnectEvent(state.Endpoint);
+                InvokeConnectedEvent(state.Endpoint);
 
                 // Strange situation when this happens, but it basically means that the connection is closed 
                 // before the software had any change of accepting it (it's possible)
@@ -72,7 +72,7 @@ namespace Boerman.TcpLib.Server
                         var type = typeof(TReceive);
                         if (type == typeof(String))
                         {
-                            InvokeOnReceiveEvent(strParts[0] + _serverSettings.Splitter as TReceive, state.Endpoint);
+                            InvokeDataReceivedEvent(strParts[0] + _serverSettings.Splitter as TReceive, state.Endpoint);
                         }
                         else
                         {
@@ -81,7 +81,7 @@ namespace Boerman.TcpLib.Server
                                 ObjectDeserializer<TReceive>.Deserialize(
                                     Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
 
-                            InvokeOnReceiveEvent(obj, state.Endpoint);
+                            InvokeDataReceivedEvent(obj, state.Endpoint);
                         }
 
                         state.ReceiveBuffer = new byte[state.ReceiveBufferSize];
@@ -101,7 +101,7 @@ namespace Boerman.TcpLib.Server
                      */
                     if (content.Length >= state.ExpectedBytesCount)
                     {
-                        InvokeOnReceiveEvent(content.Substring(0, state.ExpectedBytesCount) as TReceive, state.Endpoint);
+                        InvokeDataReceivedEvent(content.Substring(0, state.ExpectedBytesCount) as TReceive, state.Endpoint);
                         content = content.Remove(0, state.ExpectedBytesCount);
 
                         // Reset the byte count
@@ -148,8 +148,8 @@ namespace Boerman.TcpLib.Server
                         
                         _handlers.TryRemove(handler.Key, out StateObject stateObject);
 
-                        InvokeOnDisconnectEvent(stateObject.Endpoint);
-                        InvokeOnTimeoutEvent(stateObject.Endpoint);
+                        InvokeDisconnectedEvent(stateObject.Endpoint);
+                        InvokeTimeoutEvent(stateObject.Endpoint);
                     }
                     catch (Exception)
                     {

@@ -6,40 +6,40 @@ namespace Boerman.TcpLib.Server
 {
     partial class TcpServer<TSend, TReceive>
     {
-        public event EventHandler<OnReceiveEventArgs<TReceive>> OnReceive;
-        public event EventHandler<OnDisconnectEventArgs> OnDisconnect;
-        public event EventHandler<OnConnectEventArgs> OnConnect;
-        public event EventHandler<OnTimeoutEventArgs> OnTimeout;
+        public event EventHandler<DataReceivedEventArgs<TReceive>> DataReceived;
+        public event EventHandler<DisconnectedEventArgs> Disconnected;
+        public event EventHandler<ConnectedEventArgs> Connected;
+        public event EventHandler<TimeoutEventArgs> Timeout;
         
-        private void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
+        private void InvokeDataReceivedEvent(TReceive data, EndPoint endpoint)
         {
             try
             {
-                OnReceive?.Invoke(this, new OnReceiveEventArgs<TReceive>(data, endpoint));
+                DataReceived?.Invoke(this, new DataReceivedEventArgs<TReceive>(data, endpoint));
             } catch { }
         }
 
-        private void InvokeOnDisconnectEvent(EndPoint endpoint)
+        private void InvokeDisconnectedEvent(EndPoint endpoint)
         {
             try
             {
-                OnDisconnect?.Invoke(this, new OnDisconnectEventArgs(endpoint));
+                Disconnected?.Invoke(this, new DisconnectedEventArgs(endpoint));
             } catch { }
         }
 
-        private void InvokeOnConnectEvent(EndPoint endpoint)
+        private void InvokeConnectedEvent(EndPoint endpoint)
         {
             try
             {
-                OnConnect?.Invoke(this, new OnConnectEventArgs(endpoint));
+                Connected?.Invoke(this, new ConnectedEventArgs(endpoint));
             } catch { }
         }
 
-        private void InvokeOnTimeoutEvent(EndPoint endpoint)
+        private void InvokeTimeoutEvent(EndPoint endpoint)
         {
             try
             {
-                OnTimeout?.Invoke(this, new OnTimeoutEventArgs(endpoint));
+                Timeout?.Invoke(this, new TimeoutEventArgs(endpoint));
             } catch { }
         }
     }

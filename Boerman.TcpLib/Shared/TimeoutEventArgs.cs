@@ -3,9 +3,9 @@ using System.Net;
 
 namespace Boerman.TcpLib.Shared
 {
-    public class OnTimeoutEventArgs
+    public class TimeoutEventArgs
     {
-        public OnTimeoutEventArgs(EndPoint endpoint)
+        public TimeoutEventArgs(EndPoint endpoint)
         {
             Endpoint = endpoint;
             TimeStamp = DateTime.UtcNow;

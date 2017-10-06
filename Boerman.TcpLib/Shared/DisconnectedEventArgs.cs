@@ -3,9 +3,9 @@ using System.Net;
 
 namespace Boerman.TcpLib.Shared
 {
-    public class OnDisconnectEventArgs
+    public class DisconnectedEventArgs
     {
-        public OnDisconnectEventArgs(EndPoint endpoint)
+        public DisconnectedEventArgs(EndPoint endpoint)
         {
             Endpoint = endpoint;
             TimeStamp = DateTime.UtcNow;

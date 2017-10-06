@@ -69,7 +69,7 @@ namespace Boerman.TcpLib.Client
 
                 _isShuttingDown = false;
 
-                InvokeOnConnectEvent(_clientSettings.EndPoint);
+                InvokeConnectedEvent(_clientSettings.EndPoint);
                 
                 _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback,
                     _state);
@@ -111,7 +111,7 @@ namespace Boerman.TcpLib.Client
                 _state.Socket.Disconnect(false);
                 _state.Socket.Dispose();
 
-                InvokeOnDisconnectEvent(_clientSettings.EndPoint);
+                InvokeDisconnectedEvent(_clientSettings.EndPoint);
             }
             catch (SocketException ex)
             {

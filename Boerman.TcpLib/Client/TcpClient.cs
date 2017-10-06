@@ -204,20 +204,6 @@ namespace Boerman.TcpLib.Client
                 _isSending.WaitOne();
             }
         }
-
-
-        // Some obsolete methods
-        [Obsolete]
-        public void Start()
-        {
-            Open();
-        }
-
-        [Obsolete]
-        public void Stop()
-        {
-            Close();
-        }
     }
 
     public class TcpClient : TcpClient<string, string>

@@ -44,7 +44,7 @@ namespace Boerman.TcpLib.Server
         }
 
         // FUNCTIONS //
-        public void Run()
+        public void Start()
         {
             if (!_tcpServerActive.WaitOne(0)) return;
 
@@ -103,7 +103,7 @@ namespace Boerman.TcpLib.Server
         public void Restart()
         {
             Stop();
-            Run();
+            Start();
         }
 
         public void Disconnect(Guid target)

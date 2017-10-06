@@ -26,6 +26,7 @@ namespace Boerman.TcpLib.Server
         /// </summary>
         private readonly Timer _timeoutTimer = new Timer(1000);
 
+        [Obsolete]
         public TcpServer()
         {
             _serverSettings = new ServerSettings
@@ -35,6 +36,18 @@ namespace Boerman.TcpLib.Server
                 ClientTimeout       = 1020000, // 17 minutes in milliseconds
                 ReuseAddress        = false,
                 DontLinger          = false
+            };
+        }
+
+        public TcpServer(IPEndPoint endpoint)
+        {
+            _serverSettings = new ServerSettings
+            {
+                IpEndPoint = endpoint,
+                Splitter = "\r\n",
+                ClientTimeout = 1020000,
+                ReuseAddress = false,
+                DontLinger = false
             };
         }
 
@@ -178,12 +191,16 @@ namespace Boerman.TcpLib.Server
         }
     }
 
-    public class ServerSettings
+    public class TcpServer : TcpServer<string, string>
     {
-        public IPEndPoint   IpEndPoint      { get; set; }
-        public string       Splitter        { get; set; }
-        public int          ClientTimeout   { get; set; }
-        public bool         DontLinger      { get; set; }
-        public bool         ReuseAddress    { get; set; }
+        public TcpServer(IPEndPoint endpoint) : base(endpoint)
+        {
+            
+        }
+
+        public TcpServer(ServerSettings settings) : base(settings)
+        {
+            
+        }
     }
 }

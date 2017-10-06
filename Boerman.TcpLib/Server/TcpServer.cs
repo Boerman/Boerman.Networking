@@ -25,54 +25,34 @@ namespace Boerman.TcpLib.Server
         /// The timer being used to register timeouts on the sockets.
         /// </summary>
         private readonly Timer _timeoutTimer = new Timer(1000);
-
-        public TcpServer()
+        
+        public TcpServer(IPEndPoint endpoint)
         {
             _serverSettings = new ServerSettings
             {
-                IpEndPoint          = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 36700),
-                Splitter            = "\r\n",
-                Listening           = false,
-                ClientTimeout       = 1020000, // 17 minutes in milliseconds
-                ReuseAddress        = false,
-                DontLinger          = false
+                IpEndPoint = endpoint,
+                Splitter = "\r\n",
+                ClientTimeout = 1020000,
+                ReuseAddress = false,
+                DontLinger = false
             };
         }
 
         public TcpServer(ServerSettings serverSettings)
         {
             _serverSettings = serverSettings;
-
-            // Directly start the server!
-            if (_serverSettings.Listening) Run();
         }
 
-        // EVENTS //
-        public event OnReceiveEventHandler              ReceiveEvent;
-        public event OnSendEventHandler                 SendEvent;
-        public event OnConnectEventHandler              ConnectEvent;
-        public event OnDisconnectEventHandler           DisconnectEvent;
-        public event OnTimeoutEventHandler              TimeoutEvent;
-        public event OnExceptionEventHandler            ExceptionEvent;
-
-        public delegate void OnReceiveEventHandler      (StateObject state, TReceive content);
-        public delegate void OnSendEventHandler         (StateObject state);
-        public delegate void OnConnectEventHandler      (StateObject state);
-        public delegate void OnDisconnectEventHandler   (StateObject state);
-        public delegate void OnTimeoutEventHandler      (StateObject state);
-        public delegate void OnExceptionEventHandler    (StateObject state);
-
         // FUNCTIONS //
-        public void Run()
+        public void Start()
         {
-            if (_serverSettings.Listening) return;
+            if (!_tcpServerActive.WaitOne(0)) return;
 
             // Enable the timer. Make sure it's only registered once.
             _timeoutTimer.Elapsed -= TimeoutTimerOnElapsed;
             _timeoutTimer.Elapsed += TimeoutTimerOnElapsed;
             _timeoutTimer.Start();
-
-            _serverSettings.Listening = true;
+            
             _tcpServerActive.Reset();
 
             // When we stop the connections are gracefully dropped, at least
@@ -85,7 +65,9 @@ namespace Boerman.TcpLib.Server
                 listener.Bind(_serverSettings.IpEndPoint);
                 listener.Listen(1000); // The number of allowed pending connections
 
-                while (_serverSettings.Listening)
+                // Tcp server still active
+                // ToDo: Use a cancellationtoken for this
+                while (!_tcpServerActive.WaitOne(0))
                 {
                     _allDone.Reset();
                     listener.BeginAccept(AcceptCallback, listener);
@@ -100,20 +82,19 @@ namespace Boerman.TcpLib.Server
 
         public void Stop()
         {
-            if (!_serverSettings.Listening) return;
-            _serverSettings.Listening = false;
+            // The TCP server is not running so no need to stop it.
+            if (_tcpServerActive.WaitOne(0)) return;
 
             // Stop the timer as all connections are about to be ditched anyway.
             _timeoutTimer.Stop();
 
             // Officially it can take up to 4 minutes for connections to be disposed. (After 4 minutes it's dropped by the OS)
             _tcpServerActive.WaitOne(new TimeSpan(0, 10, 0));
-
-
+            
             // Stop the tcp server and ditch all the connections.
             foreach (var handler in _handlers)
             {
-                handler.Value.WorkSocket.Dispose();
+                handler.Value.Socket.Dispose();
                 StateObject stateObject;
                 _handlers.TryRemove(handler.Key, out stateObject);
             }
@@ -122,7 +103,7 @@ namespace Boerman.TcpLib.Server
         public void Restart()
         {
             Stop();
-            Run();
+            Start();
         }
 
         public void Disconnect(Guid target)
@@ -131,9 +112,9 @@ namespace Boerman.TcpLib.Server
             _handlers.TryGetValue(target, out client);
             if (client == null) return;
 
-            client.WorkSocket.Shutdown(SocketShutdown.Both);
-            client.WorkSocket.Disconnect(false);
-            client.WorkSocket.Dispose();
+            client.Socket.Shutdown(SocketShutdown.Both);
+            client.Socket.Disconnect(false);
+            client.Socket.Dispose();
 
             StateObject stateObject;
 
@@ -161,10 +142,10 @@ namespace Boerman.TcpLib.Server
             StateObject client;
             _handlers.TryGetValue(id, out client);
 
-            if (client == null || !client.WorkSocket.IsConnected()) return;
+            if (client == null || !client.Socket.IsConnected()) return;
 
             // Send the message.
-            client.WorkSocket.BeginSend(data, 0, data.Length, 0, SendCallback, client);        
+            client.Socket.BeginSend(data, 0, data.Length, 0, SendCallback, client);        
         }
 
         public void Send(string message)
@@ -197,13 +178,16 @@ namespace Boerman.TcpLib.Server
         }
     }
 
-    public class ServerSettings
+    public class TcpServer : TcpServer<string, string>
     {
-        public IPEndPoint   IpEndPoint      { get; set; }
-        public string       Splitter        { get; set; }
-        public bool         Listening       { get; set; }
-        public int          ClientTimeout   { get; set; }
-        public bool         DontLinger      { get; set; }
-        public bool         ReuseAddress    { get; set; }
+        public TcpServer(IPEndPoint endpoint) : base(endpoint)
+        {
+            
+        }
+
+        public TcpServer(ServerSettings settings) : base(settings)
+        {
+            
+        }
     }
 }

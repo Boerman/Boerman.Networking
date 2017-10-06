@@ -16,22 +16,22 @@ namespace Boerman.TcpLib.Client
                 }
                 catch (ObjectDisposedException)
                 {
-                    //Logger.Warn(ex);
                     // I guess theh object should've been disposed. Try it.
                     // Tcp client is already closed! Start it again.
-                    //Start();
+                    Open();
                 }
                 catch (SocketException ex)
                 {
-                    //Logger.Warn(ex);
-
                     StateObject state = param.AsyncState as StateObject;
 
                     switch (ex.NativeErrorCode)
                     {
                         case 10054: // An existing connection was forcibly closed by the remote host
-                            Stop();
-                            Start();
+                            if (_clientSettings.ReconnectOnDisconnect)
+                            {
+                                Close();
+                                Open();
+                            }
                             break;
                         case 10061:
                             // No connection could be made because the target machine actively refused it. Do nuthin'
@@ -44,20 +44,16 @@ namespace Boerman.TcpLib.Client
                 }
                 catch (Exception)
                 {
-                    //Logger.Error(ex);
-
                     // Tcp client isn't connected (We'd better clean up the resources.)
                     StateObject state = param.AsyncState as StateObject;
                     
-                    state?.WorkSocket.Dispose();
+                    state?.Socket.Dispose();
                     
-                    Start();
+                    Open();
                 }
             }
             catch (Exception)
             {
-                //Logger.Fatal(ex);
-
                 Environment.Exit(1);    // Aaand hopefully the service will be restarted.
             }
         }

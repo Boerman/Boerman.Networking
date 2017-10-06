@@ -25,21 +25,8 @@ namespace Boerman.TcpLib.Client
         private readonly ManualResetEvent _isConnected = new ManualResetEvent(false);
         private readonly ManualResetEvent _isSending = new ManualResetEvent(false);
         
-        private bool _isRunning;
         private bool _isShuttingDown;
-
-        [Obsolete]
-        public TcpClient()
-        {
-            _clientSettings = new ClientSettings
-            {
-                EndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 36700),
-                Splitter   = "\r\n",
-                Timeout    = 1020000,
-                ReconnectOnDisconnect = false
-            };
-        }
-
+        
         public TcpClient(IPEndPoint endpoint)
         {
             _clientSettings = new ClientSettings
@@ -80,7 +67,6 @@ namespace Boerman.TcpLib.Client
 
                 // We are connected!
 
-                _isRunning = true;
                 _isShuttingDown = false;
 
                 InvokeOnConnectEvent(_clientSettings.EndPoint);
@@ -118,8 +104,7 @@ namespace Boerman.TcpLib.Client
                 // should be completed pretty fast anyway.
                 _isSending.WaitOne();
                 _isSending.Reset();
-
-                _isRunning = false;
+                
                 _isConnected.Reset();
 
                 _state.Socket.Shutdown(SocketShutdown.Both);

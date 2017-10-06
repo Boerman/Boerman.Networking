@@ -25,20 +25,7 @@ namespace Boerman.TcpLib.Server
         /// The timer being used to register timeouts on the sockets.
         /// </summary>
         private readonly Timer _timeoutTimer = new Timer(1000);
-
-        [Obsolete]
-        public TcpServer()
-        {
-            _serverSettings = new ServerSettings
-            {
-                IpEndPoint          = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 36700),
-                Splitter            = "\r\n",
-                ClientTimeout       = 1020000, // 17 minutes in milliseconds
-                ReuseAddress        = false,
-                DontLinger          = false
-            };
-        }
-
+        
         public TcpServer(IPEndPoint endpoint)
         {
             _serverSettings = new ServerSettings

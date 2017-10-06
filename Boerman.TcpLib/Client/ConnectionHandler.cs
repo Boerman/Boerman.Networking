@@ -47,7 +47,7 @@ namespace Boerman.TcpLib.Client
                     // Tcp client isn't connected (We'd better clean up the resources.)
                     StateObject state = param.AsyncState as StateObject;
                     
-                    state?.WorkSocket.Dispose();
+                    state?.Socket.Dispose();
                     
                     Open();
                 }

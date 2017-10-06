@@ -16,7 +16,7 @@ namespace Boerman.TcpLib.Client
             ExecuteFunction(delegate(IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
-                state.WorkSocket.EndConnect(result);
+                state.Socket.EndConnect(result);
 
                 _isConnected.Set();
             }, ar);
@@ -30,7 +30,7 @@ namespace Boerman.TcpLib.Client
             ExecuteFunction(delegate(IAsyncResult result)
             {
                 state = (StateObject) result.AsyncState;
-                bytesSend = state.WorkSocket.EndSend(result);
+                bytesSend = state.Socket.EndSend(result);
             }, ar);
 
             // If code down here is put in the `ExecuteFunction` wrapper and shit hits the fan
@@ -43,10 +43,10 @@ namespace Boerman.TcpLib.Client
                 return;
             }
 
-            state.OutboundBuffer = state.OutboundBuffer.Skip(bytesSend).ToArray();
+            state.SendBuffer = state.SendBuffer.Skip(bytesSend).ToArray();
 
-            if (state.OutboundBuffer.Length > 0)
-                _state.WorkSocket.BeginSend(_state.OutboundBuffer, 0, _state.OutboundBuffer.Length, 0, SendCallback, _state);
+            if (state.SendBuffer.Length > 0)
+                _state.Socket.BeginSend(_state.SendBuffer, 0, _state.SendBuffer.Length, 0, SendCallback, _state);
             else
                 _isSending.Set();
         }
@@ -58,9 +58,9 @@ namespace Boerman.TcpLib.Client
                 StateObject state = (StateObject)result.AsyncState;
 
                 // We may as well back off if no connection is available.
-                if (!state.WorkSocket.IsConnected())
+                if (!state.Socket.IsConnected())
                 {
-                    state.WorkSocket.Dispose(); // Bug: When the client is stopped using the Stop method this may be called faster then the stop method can do.
+                    state.Socket.Dispose(); // Bug: When the client is stopped using the Stop method this may be called faster then the stop method can do.
 
                     if (_clientSettings.ReconnectOnDisconnect)
                     {
@@ -71,7 +71,7 @@ namespace Boerman.TcpLib.Client
                     return;
                 }
 
-                int bytesRead = state.WorkSocket.EndReceive(result);
+                int bytesRead = state.Socket.EndReceive(result);
                 
                 state.InboundStringBuilder.Append(Encoding.GetEncoding(Constants.Encoding).GetString(state.ReceiveBuffer, 0, bytesRead));
                 string content = state.InboundStringBuilder.ToString();
@@ -102,7 +102,7 @@ namespace Boerman.TcpLib.Client
                     state.InboundStringBuilder.Append(content);
                 }
 
-                _state.WorkSocket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback, _state);
+                _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback, _state);
             }, ar);
         }
     }

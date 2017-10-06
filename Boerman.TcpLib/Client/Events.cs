@@ -10,7 +10,7 @@ namespace Boerman.TcpLib.Client
         public event EventHandler<OnConnectEventArgs> OnConnect;
         public event EventHandler<OnDisconnectEventArgs> OnDisconnect;
 
-        public void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
+        private void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
         {
             try
             {
@@ -18,7 +18,7 @@ namespace Boerman.TcpLib.Client
             } catch { }
         }
 
-        public void InvokeOnConnectEvent(EndPoint endpoint)
+        private void InvokeOnConnectEvent(EndPoint endpoint)
         {
             try
             {
@@ -26,7 +26,7 @@ namespace Boerman.TcpLib.Client
             } catch { }
         }
 
-        public void InvokeOnDisconnectEvent(EndPoint endpoint)
+        private void InvokeOnDisconnectEvent(EndPoint endpoint)
         {
             try
             {

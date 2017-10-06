@@ -8,35 +8,39 @@ namespace Boerman.TcpLib.Shared
 {
     public class StateObject
     {
-        public Socket WorkSocket = null;
-        public Guid Guid;
+        public StateObject(Socket socket, int receiveBufferSize = 65536)
+        {
+            Guid = Guid.NewGuid();
 
-        internal int ReceiveBufferSize = 65536;
+            Socket = socket;
+
+            this.ReceiveBufferSize = receiveBufferSize;
+            ReceiveBuffer = new byte[ReceiveBufferSize];
+            
+        }
+
+        public Guid Guid { get; }
+
+        public Socket Socket { get; }
+
+        public int ReceiveBufferSize { get; }
+
         internal byte[] ReceiveBuffer;
-        
-        internal byte[] OutboundBuffer;
+        internal byte[] SendBuffer;
 
         internal ConcurrentQueue<byte[]> OutboundMessages = new ConcurrentQueue<byte[]>();
 
         internal StringBuilder InboundStringBuilder = new StringBuilder();
         internal StringBuilder OutboundStringBuilder = new StringBuilder();
         
-        public DateTime LastConnection = DateTime.UtcNow;
+        public DateTime LastConnection { get; internal set; }
 
         // Initialize both values down here because they're used to define the timeout values.
-        public DateTime LastReceived = DateTime.UtcNow;
-        public DateTime LastSend = DateTime.UtcNow;
-        
-        //public IPAddress IpAddress;
-        //public int Port;
+        public DateTime LastReceived { get; internal set; }
+        public DateTime LastSend { get; internal set; }
 
-        public EndPoint Endpoint;
+        public EndPoint Endpoint => Socket.RemoteEndPoint;
 
         public int ExpectedBytesCount = 0;
-
-        public StateObject()
-        {
-            ReceiveBuffer = new byte[ReceiveBufferSize];
-        }
     }
 }

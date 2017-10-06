@@ -11,7 +11,7 @@ namespace Boerman.TcpLib.Server
         public event EventHandler<OnConnectEventArgs> OnConnect;
         public event EventHandler<OnTimeoutEventArgs> OnTimeout;
         
-        public void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
+        private void InvokeOnReceiveEvent(TReceive data, EndPoint endpoint)
         {
             try
             {
@@ -19,7 +19,7 @@ namespace Boerman.TcpLib.Server
             } catch { }
         }
 
-        public void InvokeOnDisconnectEvent(EndPoint endpoint)
+        private void InvokeOnDisconnectEvent(EndPoint endpoint)
         {
             try
             {
@@ -27,7 +27,7 @@ namespace Boerman.TcpLib.Server
             } catch { }
         }
 
-        public void InvokeOnConnectEvent(EndPoint endpoint)
+        private void InvokeOnConnectEvent(EndPoint endpoint)
         {
             try
             {
@@ -35,7 +35,7 @@ namespace Boerman.TcpLib.Server
             } catch { }
         }
 
-        public void InvokeOnTimeoutEvent(EndPoint endpoint)
+        private void InvokeOnTimeoutEvent(EndPoint endpoint)
         {
             try
             {

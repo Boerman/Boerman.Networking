@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Timers;
@@ -25,20 +24,10 @@ namespace Boerman.TcpLib.Server
                 _allDone.Set();
 
                 Socket handler = ((Socket)result.AsyncState).EndAccept(result);
-
-                var rep = handler.RemoteEndPoint as IPEndPoint;
                 
-                var stateGuid = Guid.NewGuid();
+                var state = new StateObject(handler);
 
-                _handlers.TryAdd(stateGuid, new StateObject
-                {
-                    WorkSocket = handler,
-                    Guid       = stateGuid,
-                    Endpoint   = rep
-                });
-
-                StateObject state;
-                _handlers.TryGetValue(stateGuid, out state);
+                _handlers.TryAdd(state.Guid, state);
 
                 InvokeOnConnectEvent(state.Endpoint);
 
@@ -65,7 +54,7 @@ namespace Boerman.TcpLib.Server
                 // Update the lastConnectionmoment.
                 state.LastConnection = DateTime.UtcNow;
 
-                Socket handler = state.WorkSocket;
+                Socket handler = state.Socket;
                 
                 int bytesRead = handler.EndReceive(result);
                 
@@ -141,7 +130,7 @@ namespace Boerman.TcpLib.Server
             ExecuteFunction(delegate(IAsyncResult result)
             {
                 var client = result.AsyncState as StateObject;
-                client?.WorkSocket.EndSend(result);
+                client?.Socket.EndSend(result);
             }, ar);
         }
 
@@ -153,9 +142,9 @@ namespace Boerman.TcpLib.Server
                 {
                     try
                     {
-                        handler.Value.WorkSocket.Shutdown(SocketShutdown.Both);
-                        handler.Value.WorkSocket.Disconnect(false);
-                        handler.Value.WorkSocket.Dispose();
+                        handler.Value.Socket.Shutdown(SocketShutdown.Both);
+                        handler.Value.Socket.Disconnect(false);
+                        handler.Value.Socket.Dispose();
                         
                         _handlers.TryRemove(handler.Key, out StateObject stateObject);
 

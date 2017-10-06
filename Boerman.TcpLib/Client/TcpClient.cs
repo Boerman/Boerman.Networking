@@ -69,19 +69,11 @@ namespace Boerman.TcpLib.Client
 
                 // Continue trying until there's a connection.
                 bool success;
-
-                _state = new StateObject
-                {
-                    Guid = Guid.NewGuid(),
-                    LastConnection = DateTime.UtcNow,
-                    ReceiveBuffer = new byte[65536],
-                    ReceiveBufferSize = 65536
-                };
-
+                
                 do
                 {
-                    _state.WorkSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    _state.WorkSocket.BeginConnect(_clientSettings.EndPoint, ConnectCallback, _state);
+                    _state = new StateObject(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
+                    _state.Socket.BeginConnect(_clientSettings.EndPoint, ConnectCallback, _state);
 
                     success = _isConnected.WaitOne(10000);
                 } while (!success);
@@ -93,7 +85,7 @@ namespace Boerman.TcpLib.Client
 
                 InvokeOnConnectEvent(_clientSettings.EndPoint);
                 
-                _state.WorkSocket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback,
+                _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback,
                     _state);
             }
             catch (SocketException ex)
@@ -130,9 +122,9 @@ namespace Boerman.TcpLib.Client
                 _isRunning = false;
                 _isConnected.Reset();
 
-                _state.WorkSocket.Shutdown(SocketShutdown.Both);
-                _state.WorkSocket.Disconnect(false);
-                _state.WorkSocket.Dispose();
+                _state.Socket.Shutdown(SocketShutdown.Both);
+                _state.Socket.Disconnect(false);
+                _state.Socket.Dispose();
 
                 InvokeOnDisconnectEvent(_clientSettings.EndPoint);
             }
@@ -197,12 +189,12 @@ namespace Boerman.TcpLib.Client
                     return;
                 }
                 
-                _state.OutboundMessages.TryDequeue(out _state.OutboundBuffer);
+                _state.OutboundMessages.TryDequeue(out _state.SendBuffer);
 
                 try
                 {
                     // We can only send one message at a time.
-                    _state.WorkSocket.BeginSend(_state.OutboundBuffer, 0, _state.OutboundBuffer.Length, 0, SendCallback,
+                    _state.Socket.BeginSend(_state.SendBuffer, 0, _state.SendBuffer.Length, 0, SendCallback,
                         _state);
                 }
                 catch (SocketException ex)

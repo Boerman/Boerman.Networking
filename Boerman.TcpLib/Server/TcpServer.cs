@@ -124,6 +124,8 @@ namespace Boerman.TcpLib.Server
             StateObject stateObject;
 
             _handlers.TryRemove(clientId, out stateObject);
+
+            InvokeDisconnectedEvent(client.Endpoint);
         }
 
         #region Send functions

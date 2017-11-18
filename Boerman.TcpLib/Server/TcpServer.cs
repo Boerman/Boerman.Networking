@@ -121,9 +121,7 @@ namespace Boerman.TcpLib.Server
 
             client.Socket.Dispose();
 
-            StateObject stateObject;
-
-            _handlers.TryRemove(clientId, out stateObject);
+            _handlers.TryRemove(clientId, out _);
 
             InvokeDisconnectedEvent(client.Endpoint);
         }

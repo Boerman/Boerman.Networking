@@ -16,7 +16,10 @@ namespace Boerman.TcpLib.Shared
 
             this.ReceiveBufferSize = receiveBufferSize;
             ReceiveBuffer = new byte[ReceiveBufferSize];
-            
+
+            LastConnection = DateTime.UtcNow;
+            LastReceived = DateTime.UtcNow;
+            LastSend = DateTime.UtcNow;
         }
 
         public Guid Guid { get; }

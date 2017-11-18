@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 
 namespace Boerman.TcpLib.Server
 {
@@ -9,5 +10,6 @@ namespace Boerman.TcpLib.Server
         public int          ClientTimeout   { get; set; }
         public bool         DontLinger      { get; set; }
         public bool         ReuseAddress    { get; set; }
+        public Encoding     Encoding        { get; set; }
     }
 }

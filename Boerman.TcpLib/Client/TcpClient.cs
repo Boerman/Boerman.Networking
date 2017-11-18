@@ -34,7 +34,8 @@ namespace Boerman.TcpLib.Client
                 EndPoint = endpoint,
                 Splitter = "\r\n",
                 Timeout = 1020000,
-                ReconnectOnDisconnect = false
+                ReconnectOnDisconnect = false,
+                Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
@@ -136,12 +137,12 @@ namespace Boerman.TcpLib.Client
 
         public void Send(string message)
         {
-            Send(Encoding.GetEncoding(Constants.Encoding).GetBytes(message));
+            Send(Encoding.GetEncoding("utf-8").GetBytes(message));
         }
 
         public void Send(TSend data)
         {
-            var splitter = Encoding.GetEncoding(Constants.Encoding).GetBytes(_clientSettings.Splitter);
+            var splitter = _clientSettings.Encoding.GetBytes(_clientSettings.Splitter);
             var array = ObjectSerializer.Serialize(data).Concat(splitter).ToArray();
 
             Send(array);

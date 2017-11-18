@@ -57,8 +57,12 @@ namespace Boerman.TcpLib.Server
                 Socket handler = state.Socket;
                 
                 int bytesRead = handler.EndReceive(result);
-                
-                state.InboundStringBuilder.Append(Encoding.GetEncoding(Constants.Encoding).GetString(state.ReceiveBuffer, 0, bytesRead));
+
+                var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
+
+                InvokePartReceivedEvent(str, state.Endpoint);
+
+                state.InboundStringBuilder.Append(str);
                 string content = state.InboundStringBuilder.ToString();
 
                 // Keep looping until all messages in the buffer are processed

@@ -1,7 +1,9 @@
 
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boerman.TcpLib", "Boerman.TcpLib/Boerman.TcpLib.csproj", "{DC109CCB-C34D-477E-A465-75896818AB84}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boerman.TcpLib", "Boerman.TcpLib\Boerman.TcpLib.csproj", "{DC109CCB-C34D-477E-A465-75896818AB84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Boerman.TcpServer", "Boerman.TcpServer\Boerman.TcpServer.csproj", "{0D736ACB-7160-490C-B206-F8456A8A2BEB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,5 +15,9 @@ Global
 		{DC109CCB-C34D-477E-A465-75896818AB84}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DC109CCB-C34D-477E-A465-75896818AB84}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DC109CCB-C34D-477E-A465-75896818AB84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D736ACB-7160-490C-B206-F8456A8A2BEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D736ACB-7160-490C-B206-F8456A8A2BEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D736ACB-7160-490C-B206-F8456A8A2BEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D736ACB-7160-490C-B206-F8456A8A2BEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

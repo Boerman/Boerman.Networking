@@ -14,9 +14,7 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
 {
-    public partial class TcpClient<TSend, TReceive> 
-        where TSend : class
-        where TReceive : class
+    public partial class TcpClient
     {
         private StateObject _state;
         
@@ -140,13 +138,13 @@ namespace Boerman.TcpLib.Client
             Send(_clientSettings.Encoding.GetBytes(message));
         }
 
-        public void Send(TSend data)
-        {
-            var splitter = _clientSettings.Encoding.GetBytes(_clientSettings.Splitter);
-            var array = ObjectSerializer.Serialize(data).Concat(splitter).ToArray();
+        //public void Send(TSend data)
+        //{
+        //    var splitter = _clientSettings.Encoding.GetBytes(_clientSettings.Splitter);
+        //    var array = ObjectSerializer.Serialize(data).Concat(splitter).ToArray();
 
-            Send(array);
-        }
+        //    Send(array);
+        //}
 
         private void Send(byte[] data)
         {
@@ -207,19 +205,6 @@ namespace Boerman.TcpLib.Client
                 // Wait until we're cleared to send another message
                 _isSending.WaitOne();
             }
-        }
-    }
-
-    public class TcpClient : TcpClient<string, string>
-    {
-        public TcpClient(IPEndPoint endpoint) : base(endpoint)
-        {
-            
-        }
-
-        public TcpClient(ClientSettings settings) : base (settings)
-        {
-            
         }
     }
 }

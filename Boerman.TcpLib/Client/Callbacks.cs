@@ -7,9 +7,7 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
 {
-    partial class TcpClient<TSend, TReceive>
-        where TSend : class
-        where TReceive : class
+    partial class TcpClient
     {
         private void ConnectCallback(IAsyncResult ar)
         {
@@ -76,35 +74,6 @@ namespace Boerman.TcpLib.Client
 
                 var str = _clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
                 InvokePartReceivedEvent(str, state.Endpoint);
-
-                state.InboundStringBuilder.Append(str);
-                string content = state.InboundStringBuilder.ToString();
-
-                while (content.IndexOf(_clientSettings.Splitter, StringComparison.Ordinal) > -1)
-                {
-                    var strParts = content.Split(new string[] { _clientSettings.Splitter },
-                        StringSplitOptions.RemoveEmptyEntries);
-
-                    var type = typeof(TReceive);
-                    if (type == typeof(String))
-                    {
-                        InvokeDataReceivedEvent(strParts[0] + _clientSettings.Splitter as TReceive, _clientSettings.EndPoint);
-                    }
-                    else
-                    {
-                        // Convert it to the specific object.
-                        var obj = ObjectDeserializer<TReceive>.Deserialize(_clientSettings.Encoding.GetBytes(strParts[0]));
-                        InvokeDataReceivedEvent(obj, _clientSettings.EndPoint);
-                    }
-
-                    state.ReceiveBuffer = new byte[state.ReceiveBufferSize];
-                    state.InboundStringBuilder.Clear();
-
-                    content = content.Remove(0, strParts[0].Length);
-                    content = content.Remove(0, _clientSettings.Splitter.Length);
-
-                    state.InboundStringBuilder.Append(content);
-                }
 
                 _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback, _state);
             }, ar);

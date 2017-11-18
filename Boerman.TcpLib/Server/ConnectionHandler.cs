@@ -4,9 +4,7 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Server
 {
-    partial class TcpServer<TSend, TReceive>
-        where TSend : class
-        where TReceive : class
+    partial class TcpServer
     {
         /// <summary>
         /// This function executes the given function and handles exceptions, if any.

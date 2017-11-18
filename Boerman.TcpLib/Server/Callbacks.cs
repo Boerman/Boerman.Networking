@@ -8,9 +8,7 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Server
 {
-    partial class TcpServer<TSend, TReceive> 
-        where TSend : class
-        where TReceive : class
+    partial class TcpServer
     {
         /// <summary>
         /// The callback used after a connection is accepted.
@@ -20,16 +18,16 @@ namespace Boerman.TcpLib.Server
         {
             ExecuteFunction(delegate(IAsyncResult result)
             {
-                // The thread may continue to accept connections
-                _allDone.Set();
+                var listener = ((Socket)result.AsyncState);
 
-                Socket handler = ((Socket)result.AsyncState).EndAccept(result);
-                
+                // End the accept and get ready to accept a new connection.
+                Socket handler = listener.EndAccept(result);
+
                 var state = new StateObject(handler);
-
                 _handlers.TryAdd(state.Guid, state);
-
                 InvokeConnectedEvent(state.Endpoint);
+
+                listener.BeginAccept(AcceptCallback, listener);
 
                 // Strange situation when this happens, but it basically means that the connection is closed 
                 // before the software had any change of accepting it (it's possible)
@@ -55,71 +53,24 @@ namespace Boerman.TcpLib.Server
                 state.LastConnection = DateTime.UtcNow;
 
                 Socket handler = state.Socket;
-                
+
+                if (handler.IsConnected())
+                {
+                    // Immediately go get some more data
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
+                        ReadCallback, state);
+                }
+                else
+                {
+                    // We're disconnected
+                    InvokeDisconnectedEvent(state.Endpoint);
+                    return;
+                }
+
                 int bytesRead = handler.EndReceive(result);
 
                 var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
                 InvokePartReceivedEvent(str, state.Endpoint);
-
-                state.InboundStringBuilder.Append(str);
-                string content = state.InboundStringBuilder.ToString();
-
-                // Keep looping until all messages in the buffer are processed
-                if (state.ExpectedBytesCount < 1 || typeof(TReceive) != typeof(String))
-                {
-                    while (content.IndexOf(_serverSettings.Splitter, StringComparison.Ordinal) > -1)
-                    {
-                        var strParts = content.Split(new string[] {_serverSettings.Splitter},
-                            StringSplitOptions.RemoveEmptyEntries);
-
-                        var type = typeof(TReceive);
-                        if (type == typeof(String))
-                        {
-                            InvokeDataReceivedEvent(strParts[0] + _serverSettings.Splitter as TReceive, state.Endpoint);
-                        }
-                        else
-                        {
-                            // Convert it to the specific object.
-                            var obj =
-                                ObjectDeserializer<TReceive>.Deserialize(_serverSettings.Encoding.GetBytes(strParts[0]));
-
-                            InvokeDataReceivedEvent(obj, state.Endpoint);
-                        }
-
-                        state.ReceiveBuffer = new byte[state.ReceiveBufferSize];
-                        state.InboundStringBuilder.Clear();
-
-                        content = content.Remove(0, strParts[0].Length);
-                        content = content.Remove(0, _serverSettings.Splitter.Length);
-
-                        state.InboundStringBuilder.Append(content);
-                    }
-                }
-                else
-                {
-                    /*
-                     * 27/02/2017
-                     * Please note that this code is specificially written for HTTP/RTSP like protocols
-                     */
-                    if (content.Length >= state.ExpectedBytesCount)
-                    {
-                        InvokeDataReceivedEvent(content.Substring(0, state.ExpectedBytesCount) as TReceive, state.Endpoint);
-                        content = content.Remove(0, state.ExpectedBytesCount);
-
-                        // Reset the byte count
-                        state.ExpectedBytesCount = 0;
-
-                        state.InboundStringBuilder.Clear();
-                        state.InboundStringBuilder.Append(content);
-                    }
-                }
-
-                if (handler.IsConnected())
-                {
-                    // Wait until more data is received.
-                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
-                        ReadCallback, state);
-                }
             }, ar);
         }
 

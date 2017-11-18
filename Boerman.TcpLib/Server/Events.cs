@@ -4,19 +4,19 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Server
 {
-    partial class TcpServer<TSend, TReceive>
+    public partial class TcpServer
     {
-        public event EventHandler<DataReceivedEventArgs<TReceive>> DataReceived;
+        public event EventHandler<DataReceivedEventArgs<string>> DataReceived;
         public event EventHandler<DisconnectedEventArgs> Disconnected;
         public event EventHandler<ConnectedEventArgs> Connected;
         public event EventHandler<TimeoutEventArgs> Timeout;
         public event EventHandler<DataReceivedEventArgs<string>> PartReceived;
         
-        private void InvokeDataReceivedEvent(TReceive data, EndPoint endpoint)
+        private void InvokeDataReceivedEvent(string data, EndPoint endpoint)
         {
             try
             {
-                DataReceived?.Invoke(this, new DataReceivedEventArgs<TReceive>(data, endpoint));
+                DataReceived?.Invoke(this, new DataReceivedEventArgs<string>(data, endpoint));
             } catch { }
         }
 

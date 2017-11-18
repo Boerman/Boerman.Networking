@@ -27,7 +27,12 @@ namespace Boerman.TcpServer
 
             server.Start();
 
-            Console.ReadKey();
+            ConsoleKeyInfo key;
+            do
+            {
+                key = Console.ReadKey();
+                server.Send(key.KeyChar.ToString());
+            } while (key.Key != ConsoleKey.Escape);
         }
     }
 }

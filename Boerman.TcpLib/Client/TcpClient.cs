@@ -33,7 +33,7 @@ namespace Boerman.TcpLib.Client
             {
                 EndPoint = endpoint,
                 Splitter = "\r\n",
-                Timeout = 1020000,
+                Timeout = 300000,
                 ReconnectOnDisconnect = false,
                 Encoding = Encoding.GetEncoding("utf-8")
             };

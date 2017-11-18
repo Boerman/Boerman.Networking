@@ -72,8 +72,11 @@ namespace Boerman.TcpLib.Client
                 }
 
                 int bytesRead = state.Socket.EndReceive(result);
-                
-                state.InboundStringBuilder.Append(_clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead));
+
+                var str = _clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
+                InvokePartReceivedEvent(str, state.Endpoint);
+
+                state.InboundStringBuilder.Append(str);
                 string content = state.InboundStringBuilder.ToString();
 
                 while (content.IndexOf(_clientSettings.Splitter, StringComparison.Ordinal) > -1)

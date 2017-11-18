@@ -59,7 +59,6 @@ namespace Boerman.TcpLib.Server
                 int bytesRead = handler.EndReceive(result);
 
                 var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
-
                 InvokePartReceivedEvent(str, state.Endpoint);
 
                 state.InboundStringBuilder.Append(str);
@@ -82,8 +81,7 @@ namespace Boerman.TcpLib.Server
                         {
                             // Convert it to the specific object.
                             var obj =
-                                ObjectDeserializer<TReceive>.Deserialize(
-                                    Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
+                                ObjectDeserializer<TReceive>.Deserialize(_serverSettings.Encoding.GetBytes(strParts[0]));
 
                             InvokeDataReceivedEvent(obj, state.Endpoint);
                         }

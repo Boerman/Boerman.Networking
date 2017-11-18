@@ -137,7 +137,7 @@ namespace Boerman.TcpLib.Client
 
         public void Send(string message)
         {
-            Send(Encoding.GetEncoding("utf-8").GetBytes(message));
+            Send(_clientSettings.Encoding.GetBytes(message));
         }
 
         public void Send(TSend data)

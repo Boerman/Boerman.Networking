@@ -13,6 +13,7 @@ namespace Boerman.TcpLib.Shared
             Guid = Guid.NewGuid();
 
             Socket = socket;
+            Endpoint = socket.RemoteEndPoint;
 
             this.ReceiveBufferSize = receiveBufferSize;
             ReceiveBuffer = new byte[ReceiveBufferSize];
@@ -42,7 +43,8 @@ namespace Boerman.TcpLib.Shared
         public DateTime LastReceived { get; internal set; }
         public DateTime LastSend { get; internal set; }
 
-        public EndPoint Endpoint => Socket.RemoteEndPoint;
+        //public EndPoint Endpoint => Socket.RemoteEndPoint;
+        public EndPoint Endpoint { get; set; }
 
     }
 }

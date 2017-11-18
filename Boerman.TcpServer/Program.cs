@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net;
-using System.Threading;
 
 namespace Boerman.TcpServer
 {
@@ -15,7 +14,7 @@ namespace Boerman.TcpServer
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
             };
 
-            server.PartReceived += (sender, e) =>
+            server.DataReceived += (sender, e) =>
             {
                 Console.Write(e.Data);
             };

@@ -62,7 +62,7 @@ namespace Boerman.TcpLib.Server
                 int bytesRead = handler.EndReceive(result);
 
                 var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
-                InvokePartReceivedEvent(str, state.Endpoint);
+                InvokeDataReceivedEvent(str, state.Endpoint);
             }, ar);
         }
 
@@ -85,15 +85,8 @@ namespace Boerman.TcpLib.Server
             {
                 if ((DateTime.UtcNow - handler.Value.LastConnection).TotalMilliseconds > _serverSettings.ClientTimeout)
                 {
-                    try
-                    {
-                        Disconnect(handler.Key);
-                        InvokeTimeoutEvent(handler.Value.Endpoint);
-                    }
-                    catch (Exception)
-                    {
-                        // To catch objectdisposedexceptions
-                    }
+                    Disconnect(handler.Key);
+                    InvokeTimeoutEvent(handler.Value.Endpoint);
                 }
             }
         }

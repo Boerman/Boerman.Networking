@@ -75,7 +75,7 @@ namespace Boerman.TcpLib.Client
                 int bytesRead = handler.EndReceive(result);
 
                 var str = _clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
-                InvokePartReceivedEvent(str, state.Endpoint);
+                InvokeDataReceivedEvent(str, state.Endpoint);
             }, ar);
         }
     }

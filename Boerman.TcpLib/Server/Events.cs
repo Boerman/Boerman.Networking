@@ -10,6 +10,7 @@ namespace Boerman.TcpLib.Server
         public event EventHandler<DisconnectedEventArgs> Disconnected;
         public event EventHandler<ConnectedEventArgs> Connected;
         public event EventHandler<TimeoutEventArgs> Timeout;
+        public event EventHandler<DataReceivedEventArgs<string>> PartReceived;
         
         private void InvokeDataReceivedEvent(TReceive data, EndPoint endpoint)
         {
@@ -40,6 +41,14 @@ namespace Boerman.TcpLib.Server
             try
             {
                 Timeout?.Invoke(this, new TimeoutEventArgs(endpoint));
+            } catch { }
+        }
+
+        private void InvokePartReceivedEvent(string data, EndPoint endpoint)
+        {
+            try
+            {
+                PartReceived?.Invoke(this, new DataReceivedEventArgs<string>(data, endpoint));
             } catch { }
         }
     }

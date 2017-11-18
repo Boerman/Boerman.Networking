@@ -73,7 +73,7 @@ namespace Boerman.TcpLib.Client
 
                 int bytesRead = state.Socket.EndReceive(result);
                 
-                state.InboundStringBuilder.Append(Encoding.GetEncoding(Constants.Encoding).GetString(state.ReceiveBuffer, 0, bytesRead));
+                state.InboundStringBuilder.Append(_clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead));
                 string content = state.InboundStringBuilder.ToString();
 
                 while (content.IndexOf(_clientSettings.Splitter, StringComparison.Ordinal) > -1)
@@ -89,7 +89,7 @@ namespace Boerman.TcpLib.Client
                     else
                     {
                         // Convert it to the specific object.
-                        var obj = ObjectDeserializer<TReceive>.Deserialize(Encoding.GetEncoding(Constants.Encoding).GetBytes(strParts[0]));
+                        var obj = ObjectDeserializer<TReceive>.Deserialize(_clientSettings.Encoding.GetBytes(strParts[0]));
                         InvokeDataReceivedEvent(obj, _clientSettings.EndPoint);
                     }
 

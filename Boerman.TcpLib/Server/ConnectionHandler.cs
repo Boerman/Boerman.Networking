@@ -31,6 +31,7 @@ namespace Boerman.TcpLib.Server
 
                         _handlers.TryRemove(state.Guid, out StateObject stateObject);
 
+
                         InvokeDisconnectedEvent(stateObject.Endpoint);
                     }
                 }

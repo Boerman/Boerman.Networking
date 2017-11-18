@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Boerman.Core;
 using Boerman.Core.Serialization;
 using Boerman.TcpLib.Shared;
 using Timer = System.Timers.Timer;
@@ -32,9 +31,10 @@ namespace Boerman.TcpLib.Server
             {
                 IpEndPoint = endpoint,
                 Splitter = "\r\n",
-                ClientTimeout = 1020000,
+                ClientTimeout = 300000,
                 ReuseAddress = false,
-                DontLinger = false
+                DontLinger = false,
+                Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
@@ -46,7 +46,7 @@ namespace Boerman.TcpLib.Server
         // FUNCTIONS //
         public void Start()
         {
-            if (!_tcpServerActive.WaitOne(0)) return;
+            if (_tcpServerActive.WaitOne(0)) return;
 
             // Enable the timer. Make sure it's only registered once.
             _timeoutTimer.Elapsed -= TimeoutTimerOnElapsed;
@@ -59,7 +59,10 @@ namespace Boerman.TcpLib.Server
             using (Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
                 // Some configuration options
-                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, _serverSettings.DontLinger);
+
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, _serverSettings.DontLinger);    // On OS X the program crashes when setting this option so I suppose it's windows only...
+
                 listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, _serverSettings.ReuseAddress);
 
                 listener.Bind(_serverSettings.IpEndPoint);
@@ -125,12 +128,12 @@ namespace Boerman.TcpLib.Server
         public void Send(Guid target, string message)
         {
             // Send the message.
-            Send(target, Encoding.GetEncoding(Constants.Encoding).GetBytes(message));
+            Send(target, _serverSettings.Encoding.GetBytes(message));
         }
 
         public void Send(Guid target, TSend obj)
         {
-            var splitter = Encoding.GetEncoding(Constants.Encoding).GetBytes(_serverSettings.Splitter);
+            var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
             var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
 
             Send(target, array);
@@ -150,12 +153,12 @@ namespace Boerman.TcpLib.Server
 
         public void Send(string message)
         {
-            SendToAll(Encoding.GetEncoding(Constants.Encoding).GetBytes(message));
+            SendToAll(_serverSettings.Encoding.GetBytes(message));
         }
 
         public void Send(TSend obj)
         {
-            var splitter = Encoding.GetEncoding(Constants.Encoding).GetBytes(_serverSettings.Splitter);
+            var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
             var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
 
             SendToAll(array);

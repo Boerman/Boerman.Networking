@@ -1,15 +1,9 @@
-﻿/*
- * ToDo: Add default configuration for properties (not on class constructor level)
- */
-
-using System;
+﻿using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Boerman.Core;
-using Boerman.Core.Serialization;
 using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
@@ -22,7 +16,6 @@ namespace Boerman.TcpLib.Client
 
         private readonly ManualResetEvent _isConnected = new ManualResetEvent(false);
         private readonly ManualResetEvent _isSending = new ManualResetEvent(false);
-        
         private bool _isShuttingDown;
         
         public TcpClient(IPEndPoint endpoint)
@@ -133,20 +126,20 @@ namespace Boerman.TcpLib.Client
             }
         }
 
+        /// <summary>
+        /// Send the specified message.
+        /// </summary>
+        /// <param name="message">Message</param>
         public void Send(string message)
         {
             Send(_clientSettings.Encoding.GetBytes(message));
         }
 
-        //public void Send(TSend data)
-        //{
-        //    var splitter = _clientSettings.Encoding.GetBytes(_clientSettings.Splitter);
-        //    var array = ObjectSerializer.Serialize(data).Concat(splitter).ToArray();
-
-        //    Send(array);
-        //}
-
-        private void Send(byte[] data)
+        /// <summary>
+        /// Send the specified data.
+        /// </summary>
+        /// <param name="data">Data</param>
+        public void Send(byte[] data)
         {
             // Wait with the send process until we're connected.
             // ToDo: Check whether we have to add some timeout in case no connection can be made

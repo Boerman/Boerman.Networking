@@ -89,8 +89,8 @@ namespace Boerman.TcpLib.Server
                     try
                     {
                         Disconnect(handler.Key);
-                        InvokeDisconnectedEvent(stateObject.Endpoint);
-                        InvokeTimeoutEvent(stateObject.Endpoint);
+                        InvokeDisconnectedEvent(handler.Value.Endpoint);
+                        InvokeTimeoutEvent(handler.Value.Endpoint);
                     }
                     catch (Exception)
                     {

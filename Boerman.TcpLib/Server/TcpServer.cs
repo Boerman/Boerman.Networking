@@ -5,7 +5,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Boerman.Core.Serialization;
 using Boerman.TcpLib.Shared;
 using Timer = System.Timers.Timer;
 
@@ -16,6 +15,7 @@ namespace Boerman.TcpLib.Server
         private readonly ConcurrentDictionary<Guid, StateObject> _handlers = new ConcurrentDictionary<Guid, StateObject>();
         // ToDo: Replace the _tcpServerActive ManualResetEvent with a CancellationToken
         private readonly ManualResetEvent _tcpServerActive                 = new ManualResetEvent(false);
+
         private readonly ServerSettings _serverSettings;
 
         /// <summary>
@@ -41,7 +41,9 @@ namespace Boerman.TcpLib.Server
             _serverSettings = serverSettings;
         }
 
-        // FUNCTIONS //
+        /// <summary>
+        /// Start this instance.
+        /// </summary>
         public void Start()
         {
             if (_tcpServerActive.WaitOne(0)) return;
@@ -77,6 +79,9 @@ namespace Boerman.TcpLib.Server
             listener.BeginAccept(AcceptCallback, listener);
         }
 
+        /// <summary>
+        /// Stop this instance.
+        /// </summary>
         public void Stop()
         {
             // The TCP server is not running so no need to stop it.
@@ -95,13 +100,20 @@ namespace Boerman.TcpLib.Server
             _tcpServerActive.Set();
         }
 
+        /// <summary>
+        /// Restart this instance.
+        /// </summary>
         public void Restart()
         {
             Stop();
             Start();
         }
 
-        public void Disconnect(Guid target)
+        /// <summary>
+        /// Disconnect the specified client.
+        /// </summary>
+        /// <param name="clientId">Client</param>
+        public void Disconnect(Guid clientId)
         {
             StateObject client;
             _handlers.TryGetValue(target, out client);
@@ -117,25 +129,27 @@ namespace Boerman.TcpLib.Server
         }
 
         #region Send functions
-        public void Send(Guid target, string message)
+        /// <summary>
+        /// Send the message to a specified client
+        /// </summary>
+        /// <param name="clientId">Client identifier</param>
+        /// <param name="message">Message</param>
+        public void Send(Guid clientId, string message)
         {
             // Send the message.
-            Send(target, _serverSettings.Encoding.GetBytes(message));
+            Send(clientId, _serverSettings.Encoding.GetBytes(message));
         }
 
-        //public void Send(Guid target, object obj)
-        //{
-        //    var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
-        //    var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
-
-        //    Send(target, array);
-        //}
-
-        private void Send(Guid id, byte[] data)
+        /// <summary>
+        /// Send the data to a specified client
+        /// </summary>
+        /// <param name="clientId">Client identifier</param>
+        /// <param name="data">Data</param>
+        public void Send(Guid clientId, byte[] data)
         {
             // Check if this specific item is available.
             StateObject client;
-            _handlers.TryGetValue(id, out client);
+            _handlers.TryGetValue(clientId, out client);
 
             if (client == null || !client.Socket.IsConnected()) return;
 
@@ -143,20 +157,20 @@ namespace Boerman.TcpLib.Server
             client.Socket.BeginSend(data, 0, data.Length, 0, SendCallback, client);        
         }
 
+        /// <summary>
+        /// Will send the message to all connected clients
+        /// </summary>
+        /// <param name="message">Message</param>
         public void Send(string message)
         {
-            SendToAll(_serverSettings.Encoding.GetBytes(message));
+            Send(_serverSettings.Encoding.GetBytes(message));
         }
 
-        //public void Send(object obj)
-        //{
-        //    var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
-        //    var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
-
-        //    SendToAll(array);
-        //}
-
-        private void SendToAll(byte[] data)
+        /// <summary>
+        /// Will send the data to all connected clients
+        /// </summary>
+        /// <param name="data">Data</param>
+        public void Send(byte[] data)
         {
             foreach (var handler in _handlers.Values)
             {
@@ -167,6 +181,10 @@ namespace Boerman.TcpLib.Server
         }
         #endregion
 
+        /// <summary>
+        /// Returns the current number of connected clients
+        /// </summary>
+        /// <returns>Number of connected clients</returns>
         public int ConnectionCount()
         {
             return _handlers.Count();

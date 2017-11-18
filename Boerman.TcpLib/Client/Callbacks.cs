@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Text;
-using Boerman.Core;
-using Boerman.Core.Serialization;
 using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client

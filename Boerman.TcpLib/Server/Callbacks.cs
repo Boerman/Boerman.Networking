@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
-using System.Text;
 using System.Timers;
-using Boerman.Core;
-using Boerman.Core.Serialization;
 using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Server
@@ -29,9 +26,6 @@ namespace Boerman.TcpLib.Server
 
                 listener.BeginAccept(AcceptCallback, listener);
 
-                // Strange situation when this happens, but it basically means that the connection is closed 
-                // before the software had any change of accepting it (it's possible)
-                // Maybe we should think about a better application architecture.
                 if (state != null) // Bug: When this happens something probably went wrong within the _handlers.TryGetValue call
                 {
                     handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReadCallback, state);

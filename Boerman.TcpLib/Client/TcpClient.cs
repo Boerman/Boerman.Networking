@@ -150,17 +150,20 @@ namespace Boerman.TcpLib.Client
 
         private void Send(byte[] data)
         {
-            // Wait with the send process until we're connected. (ToDo: Check whether we have to add some timeout)
+            // Wait with the send process until we're connected.
+            // ToDo: Check whether we have to add some timeout in case no connection can be made
             _isConnected.WaitOne();
 
             _state.OutboundMessages.Enqueue(data);
             
-            if (!_isSending.WaitOne(0))
+            if (_isSending.WaitOne(0))
                 EmptyOutboundQueue();   // We have to initialize the sending process.
         }
 
         private void EmptyOutboundQueue()
         {
+            //_isSending.Reset();
+
             while (_state.OutboundMessages.Any())
             {
                 if (_isShuttingDown)

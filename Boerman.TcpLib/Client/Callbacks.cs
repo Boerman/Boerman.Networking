@@ -19,6 +19,7 @@ namespace Boerman.TcpLib.Client
                 state.Socket.EndConnect(result);
 
                 _isConnected.Set();
+                _isSending.Set();
             }, ar);
         }
 
@@ -45,10 +46,10 @@ namespace Boerman.TcpLib.Client
 
             state.SendBuffer = state.SendBuffer.Skip(bytesSend).ToArray();
 
-            if (state.SendBuffer.Length > 0)
-                _state.Socket.BeginSend(_state.SendBuffer, 0, _state.SendBuffer.Length, 0, SendCallback, _state);
-            else
-                _isSending.Set();
+            //if (state.SendBuffer.Length > 0)
+            //    _state.Socket.BeginSend(_state.SendBuffer, 0, _state.SendBuffer.Length, 0, SendCallback, _state);
+            //else
+            _isSending.Set();
         }
 
         private void ReceiveCallback(IAsyncResult ar)

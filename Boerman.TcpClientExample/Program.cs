@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Threading;
 
 namespace Boerman.TcpClientExample
 {
@@ -9,7 +10,7 @@ namespace Boerman.TcpClientExample
         {
             // Create a new TcpServer listening on port 2626
             var client = new TcpLib.Client.TcpClient(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
-                                   
+
             client.Connected += (sender, e) => {
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
             };
@@ -24,9 +25,15 @@ namespace Boerman.TcpClientExample
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} disconnected");
             };
 
-            server.Start();
+            client.Open();
 
-            Console.ReadKey();
+            ConsoleKeyInfo key;
+            do
+            {
+                key = Console.ReadKey();
+
+                client.Send(key.KeyChar.ToString());
+            } while (key.Key != ConsoleKey.Escape);
         }
     }
 }

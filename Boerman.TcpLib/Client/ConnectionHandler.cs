@@ -4,7 +4,7 @@ using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
 {
-    partial class TcpClient<TSend, TReceive>
+    partial class TcpClient
     {
         public void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
         {

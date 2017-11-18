@@ -31,7 +31,6 @@ namespace Boerman.TcpLib.Server
                 Splitter = "\r\n",
                 ClientTimeout = 300000,
                 ReuseAddress = false,
-                DontLinger = false,
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
@@ -56,11 +55,6 @@ namespace Boerman.TcpLib.Server
             _tcpServerActive.Reset();
 
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
-            // Some configuration options
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, _serverSettings.DontLinger);    // On OS X the program crashes when setting this option so I suppose it's windows only...
-
             listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, _serverSettings.ReuseAddress);
 
             try
@@ -116,16 +110,20 @@ namespace Boerman.TcpLib.Server
         public void Disconnect(Guid clientId)
         {
             StateObject client;
-            _handlers.TryGetValue(target, out client);
+            _handlers.TryGetValue(clientId, out client);
             if (client == null) return;
 
-            client.Socket.Shutdown(SocketShutdown.Both);
-            client.Socket.Disconnect(false);
+            if (client.Socket.IsConnected())
+            {
+                client.Socket.Shutdown(SocketShutdown.Both);
+                client.Socket.Disconnect(false);
+            }
+
             client.Socket.Dispose();
 
             StateObject stateObject;
 
-            _handlers.TryRemove(target, out stateObject);
+            _handlers.TryRemove(clientId, out stateObject);
         }
 
         #region Send functions

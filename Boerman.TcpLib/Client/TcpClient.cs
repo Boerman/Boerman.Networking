@@ -54,7 +54,7 @@ namespace Boerman.TcpLib.Client
                     _state = new StateObject(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
                     _state.Socket.BeginConnect(_clientSettings.EndPoint, ConnectCallback, _state);
 
-                    success = _isConnected.WaitOne(10000);
+                    success = _isConnected.WaitOne(1000);
                 } while (!success);
 
                 // We are connected!
@@ -181,6 +181,7 @@ namespace Boerman.TcpLib.Client
                 {
                     switch (ex.NativeErrorCode)
                     {
+                        case 32:    // Broken pipe
                         case 10054: // An existing connection was forcibly closed by the remote host
                             _isSending.Set(); // Otherwise the program will wait indefinitely.
 

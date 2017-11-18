@@ -8,7 +8,6 @@ namespace Boerman.TcpLib.Server
         public IPEndPoint   IpEndPoint      { get; set; }
         public string       Splitter        { get; set; }
         public int          ClientTimeout   { get; set; }
-        public bool         DontLinger      { get; set; }
         public bool         ReuseAddress    { get; set; }
         public Encoding     Encoding        { get; set; }
     }

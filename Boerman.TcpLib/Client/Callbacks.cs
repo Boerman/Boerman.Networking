@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net.Sockets;
 using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
@@ -52,14 +53,18 @@ namespace Boerman.TcpLib.Client
             ExecuteFunction(delegate(IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
+                state.LastConnection = DateTime.UtcNow;
 
-                // We may as well back off if no connection is available.
-                if (!state.Socket.IsConnected())
-                {
-                    state.Socket.Dispose(); // Bug: When the client is stopped using the Stop method this may be called faster then the stop method can do.
+                Socket handler = state.Socket;
 
-                    if (_clientSettings.ReconnectOnDisconnect)
-                    {
+                if (handler.IsConnected()) {
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReceiveCallback, state);
+                }
+                else {
+                    InvokeDisconnectedEvent(state.Endpoint);
+
+                    // Don't ask what I need this for
+                    if (_clientSettings.ReconnectOnDisconnect) {
                         Close();
                         Open();
                     }
@@ -67,12 +72,10 @@ namespace Boerman.TcpLib.Client
                     return;
                 }
 
-                int bytesRead = state.Socket.EndReceive(result);
+                int bytesRead = handler.EndReceive(result);
 
                 var str = _clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
                 InvokePartReceivedEvent(str, state.Endpoint);
-
-                _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback, _state);
             }, ar);
         }
     }

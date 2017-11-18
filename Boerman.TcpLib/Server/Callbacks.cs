@@ -42,8 +42,6 @@ namespace Boerman.TcpLib.Server
             ExecuteFunction(delegate(IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
-
-                // Update the lastConnectionmoment.
                 state.LastConnection = DateTime.UtcNow;
 
                 Socket handler = state.Socket;
@@ -57,6 +55,7 @@ namespace Boerman.TcpLib.Server
                 else
                 {
                     // We're disconnected
+                    Disconnect(state.Guid);
                     InvokeDisconnectedEvent(state.Endpoint);
                     return;
                 }
@@ -89,12 +88,7 @@ namespace Boerman.TcpLib.Server
                 {
                     try
                     {
-                        handler.Value.Socket.Shutdown(SocketShutdown.Both);
-                        handler.Value.Socket.Disconnect(false);
-                        handler.Value.Socket.Dispose();
-                        
-                        _handlers.TryRemove(handler.Key, out StateObject stateObject);
-
+                        Disconnect(handler.Key);
                         InvokeDisconnectedEvent(stateObject.Endpoint);
                         InvokeTimeoutEvent(stateObject.Endpoint);
                     }

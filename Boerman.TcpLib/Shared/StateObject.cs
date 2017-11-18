@@ -44,6 +44,5 @@ namespace Boerman.TcpLib.Shared
 
         public EndPoint Endpoint => Socket.RemoteEndPoint;
 
-        public int ExpectedBytesCount = 0;
     }
 }

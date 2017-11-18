@@ -11,12 +11,10 @@ using Timer = System.Timers.Timer;
 
 namespace Boerman.TcpLib.Server
 {
-    public partial class TcpServer<TSend, TReceive>
-        where TSend : class
-        where TReceive : class
+    public partial class TcpServer
     {
         private readonly ConcurrentDictionary<Guid, StateObject> _handlers = new ConcurrentDictionary<Guid, StateObject>();
-        private readonly ManualResetEvent _allDone                         = new ManualResetEvent(false);
+        // ToDo: Replace the _tcpServerActive ManualResetEvent with a CancellationToken
         private readonly ManualResetEvent _tcpServerActive                 = new ManualResetEvent(false);
         private readonly ServerSettings _serverSettings;
 
@@ -55,32 +53,28 @@ namespace Boerman.TcpLib.Server
             
             _tcpServerActive.Reset();
 
-            // When we stop the connections are gracefully dropped, at least
-            using (Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+            Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            // Some configuration options
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, _serverSettings.DontLinger);    // On OS X the program crashes when setting this option so I suppose it's windows only...
+
+            listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, _serverSettings.ReuseAddress);
+
+            try
             {
-                // Some configuration options
-
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                    listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, _serverSettings.DontLinger);    // On OS X the program crashes when setting this option so I suppose it's windows only...
-
-                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, _serverSettings.ReuseAddress);
-
                 listener.Bind(_serverSettings.IpEndPoint);
-                listener.Listen(1000); // The number of allowed pending connections
-
-                // Tcp server still active
-                // ToDo: Use a cancellationtoken for this
-                while (!_tcpServerActive.WaitOne(0))
-                {
-                    _allDone.Reset();
-                    listener.BeginAccept(AcceptCallback, listener);
-                    _allDone.WaitOne();
+            } catch (SocketException ex) {
+                if (ex.NativeErrorCode == 48) { // Address already in use
+                    // ToDo: Add some usable logging information
+                    throw;  // Rethrow
                 }
             }
-            
-            _handlers.Clear();  // The worksockets in here are not available anymore.
 
-            _tcpServerActive.Set();
+            listener.Listen(1000); // The number of allowed pending connections
+
+            // Get ready to accept the first connection
+            listener.BeginAccept(AcceptCallback, listener);
         }
 
         public void Stop()
@@ -91,9 +85,6 @@ namespace Boerman.TcpLib.Server
             // Stop the timer as all connections are about to be ditched anyway.
             _timeoutTimer.Stop();
 
-            // Officially it can take up to 4 minutes for connections to be disposed. (After 4 minutes it's dropped by the OS)
-            _tcpServerActive.WaitOne(new TimeSpan(0, 10, 0));
-            
             // Stop the tcp server and ditch all the connections.
             foreach (var handler in _handlers)
             {
@@ -101,6 +92,7 @@ namespace Boerman.TcpLib.Server
                 StateObject stateObject;
                 _handlers.TryRemove(handler.Key, out stateObject);
             }
+            _tcpServerActive.Set();
         }
 
         public void Restart()
@@ -131,13 +123,13 @@ namespace Boerman.TcpLib.Server
             Send(target, _serverSettings.Encoding.GetBytes(message));
         }
 
-        public void Send(Guid target, TSend obj)
-        {
-            var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
-            var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
+        //public void Send(Guid target, object obj)
+        //{
+        //    var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
+        //    var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
 
-            Send(target, array);
-        }
+        //    Send(target, array);
+        //}
 
         private void Send(Guid id, byte[] data)
         {
@@ -156,13 +148,13 @@ namespace Boerman.TcpLib.Server
             SendToAll(_serverSettings.Encoding.GetBytes(message));
         }
 
-        public void Send(TSend obj)
-        {
-            var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
-            var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
+        //public void Send(object obj)
+        //{
+        //    var splitter = _serverSettings.Encoding.GetBytes(_serverSettings.Splitter);
+        //    var array = ObjectSerializer.Serialize(obj).Concat(splitter).ToArray();
 
-            SendToAll(array);
-        }
+        //    SendToAll(array);
+        //}
 
         private void SendToAll(byte[] data)
         {
@@ -178,19 +170,6 @@ namespace Boerman.TcpLib.Server
         public int ConnectionCount()
         {
             return _handlers.Count();
-        }
-    }
-
-    public class TcpServer : TcpServer<string, string>
-    {
-        public TcpServer(IPEndPoint endpoint) : base(endpoint)
-        {
-            
-        }
-
-        public TcpServer(ServerSettings settings) : base(settings)
-        {
-            
         }
     }
 }

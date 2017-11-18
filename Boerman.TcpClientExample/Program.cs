@@ -31,7 +31,6 @@ namespace Boerman.TcpClientExample
             do
             {
                 key = Console.ReadKey();
-
                 client.Send(key.KeyChar.ToString());
             } while (key.Key != ConsoleKey.Escape);
         }

@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Timers;
 using Boerman.TcpLib.Shared;
 using Timer = System.Timers.Timer;
 
@@ -15,8 +16,12 @@ namespace Boerman.TcpLib.Server
         private readonly ConcurrentDictionary<Guid, StateObject> _handlers = new ConcurrentDictionary<Guid, StateObject>();
         // ToDo: Replace the _tcpServerActive ManualResetEvent with a CancellationToken
         private readonly ManualResetEvent _tcpServerActive                 = new ManualResetEvent(false);
-
         private readonly ServerSettings _serverSettings;
+
+        public event EventHandler<DataReceivedEventArgs> DataReceived;
+        public event EventHandler<DisconnectedEventArgs> Disconnected;
+        public event EventHandler<ConnectedEventArgs> Connected;
+        public event EventHandler<TimeoutEventArgs> Timeout;
 
         /// <summary>
         /// The timer being used to register timeouts on the sockets.
@@ -28,8 +33,7 @@ namespace Boerman.TcpLib.Server
             _serverSettings = new ServerSettings
             {
                 IpEndPoint = endpoint,
-                Splitter = "\r\n",
-                ClientTimeout = 300000,
+                ClientTimeout = 30000,
                 ReuseAddress = false,
                 Encoding = Encoding.GetEncoding("utf-8")
             };
@@ -38,6 +42,73 @@ namespace Boerman.TcpLib.Server
         public TcpServer(ServerSettings serverSettings)
         {
             _serverSettings = serverSettings;
+        }
+
+        /// <summary>
+        /// This function executes the given function and handles exceptions, if any.
+        /// </summary>
+        /// <param name="action">The action to execute.</param>
+        /// <param name="param">The param with which the action has to be executed.</param>
+        /// <returns></returns>
+        public void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
+        {
+            try
+            {
+                try
+                {
+                    action(param);
+                }
+                catch (ObjectDisposedException)
+                {
+                    if (param.AsyncState is StateObject)
+                    {
+                        // TcpClient is already closed. All we gotta do is remove all references. (Aaand the garbage man will clean the shit behind our backs.)
+                        StateObject state = (StateObject)param.AsyncState;
+
+                        Disconnect(state.Guid);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    if (param.AsyncState is StateObject)
+                    {
+                        // Tcp client isn't connected (We'd better clean up the resources.)
+                        StateObject state = (StateObject)param.AsyncState;
+
+                        Disconnect(state.Guid);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    switch (ex.NativeErrorCode)
+                    {
+                        case 10054: // Force disconnect
+                            if (param.AsyncState is StateObject)
+                            {
+                                var state = (StateObject)param.AsyncState;
+
+                                Disconnect(state.Guid);
+                            }
+                            break;
+                    }
+                }
+                catch (NullReferenceException)
+                {
+                    // If this happens we're really far away! Restart the socket listener!
+                    Restart();
+                }
+                catch (OutOfMemoryException)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                }
+            }
+            catch (Exception)
+            {
+                Environment.Exit(1);        // MAYDAY MAYDAY MAYDAY
+            }
         }
 
         /// <summary>
@@ -123,7 +194,7 @@ namespace Boerman.TcpLib.Server
 
             _handlers.TryRemove(clientId, out _);
 
-            InvokeDisconnectedEvent(client.Endpoint);
+            Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.Endpoint));
         }
 
         #region Send functions
@@ -186,6 +257,91 @@ namespace Boerman.TcpLib.Server
         public int ConnectionCount()
         {
             return _handlers.Count();
+        }
+
+        /// <summary>
+        /// The callback used after a connection is accepted.
+        /// </summary>
+        /// <param name="ar"></param>
+        internal void AcceptCallback(IAsyncResult ar)
+        {
+            ExecuteFunction(delegate (IAsyncResult result)
+            {
+                var listener = ((Socket)result.AsyncState);
+
+                // End the accept and get ready to accept a new connection.
+                Socket handler = listener.EndAccept(result);
+
+                var state = new StateObject(handler);
+                _handlers.TryAdd(state.Guid, state);
+
+                Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.Endpoint));
+
+                listener.BeginAccept(AcceptCallback, listener);
+
+                if (state != null) // Bug: When this happens something probably went wrong within the _handlers.TryGetValue call
+                {
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReadCallback, state);
+                }
+            }, ar);
+        }
+
+        /// <summary>
+        ///  The callback used after a read event is accepted.
+        /// </summary>
+        /// <param name="ar"></param>
+        internal void ReadCallback(IAsyncResult ar)
+        {
+            ExecuteFunction(delegate (IAsyncResult result)
+            {
+                StateObject state = (StateObject)result.AsyncState;
+                state.LastConnection = DateTime.UtcNow;
+
+                Socket handler = state.Socket;
+
+                if (handler.IsConnected())
+                {
+                    // Immediately go get some more data
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
+                        ReadCallback, state);
+                }
+                else
+                {
+                    // We're disconnected
+                    Disconnect(state.Guid);
+                    return;
+                }
+
+                int bytesRead = handler.EndReceive(result);
+
+                var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
+                Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(str, state.Endpoint));
+            }, ar);
+        }
+
+        /// <summary>
+        ///  The callback used after data is sent over the socket.
+        /// </summary>
+        /// <param name="ar"></param>
+        internal void SendCallback(IAsyncResult ar)
+        {
+            ExecuteFunction(delegate (IAsyncResult result)
+            {
+                var client = result.AsyncState as StateObject;
+                client?.Socket.EndSend(result);
+            }, ar);
+        }
+
+        private void TimeoutTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
+        {
+            foreach (var handler in _handlers)
+            {
+                if ((DateTime.UtcNow - handler.Value.LastConnection).TotalMilliseconds > _serverSettings.ClientTimeout)
+                {
+                    Disconnect(handler.Key);
+                    Common.InvokeEvent(this, Timeout, new TimeoutEventArgs(handler.Value.Endpoint));
+                }
+            }
         }
     }
 }

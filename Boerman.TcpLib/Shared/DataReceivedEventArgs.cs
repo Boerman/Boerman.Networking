@@ -2,15 +2,15 @@
 
 namespace Boerman.TcpLib.Shared
 {
-    public class DataReceivedEventArgs<T>
+    public class DataReceivedEventArgs
     {
-        public DataReceivedEventArgs(T data, EndPoint endpoint)
+        public DataReceivedEventArgs(string data, EndPoint endpoint)
         {
             Endpoint = endpoint;
             Data = data;
         }
 
-        public T Data { get; }
+        public string Data { get; }
         public EndPoint Endpoint;
     }
 }

@@ -92,17 +92,20 @@ namespace Boerman.TcpLib.Client
             {
                 _isShuttingDown = true;
 
-                // There's no specific reason to set a timeout as this operation
-                // should be completed pretty fast anyway.
-                _isSending.WaitOne();
-                _isSending.Reset();
-                
-                _isConnected.Reset();
+                if (_state.Socket.IsConnected())
+                {
+                    // There's no specific reason to set a timeout as this operation
+                    // should be completed pretty fast anyway.
+                    _isSending.WaitOne();
+                    _isSending.Reset();
 
-                _state.Socket.Shutdown(SocketShutdown.Both);
-                _state.Socket.Disconnect(false);
+                    _isConnected.Reset();
+
+                    _state.Socket.Shutdown(SocketShutdown.Both);
+                    _state.Socket.Disconnect(false);
+                }
+
                 _state.Socket.Dispose();
-
                 InvokeDisconnectedEvent(_clientSettings.EndPoint);
             }
             catch (SocketException ex)

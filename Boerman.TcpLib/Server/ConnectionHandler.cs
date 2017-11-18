@@ -28,7 +28,6 @@ namespace Boerman.TcpLib.Server
                         StateObject state = (StateObject) param.AsyncState;
 
                         Disconnect(state.Guid);
-                        InvokeDisconnectedEvent(state.Endpoint);
                     }
                 }
                 catch (InvalidOperationException)
@@ -39,7 +38,6 @@ namespace Boerman.TcpLib.Server
                         StateObject state = (StateObject) param.AsyncState;
 
                         Disconnect(state.Guid);
-                        InvokeDisconnectedEvent(state.Endpoint);
                     }
                 }
                 catch (SocketException ex)
@@ -52,7 +50,6 @@ namespace Boerman.TcpLib.Server
                                 var state = (StateObject) param.AsyncState;
 
                                 Disconnect(state.Guid);
-                                InvokeDisconnectedEvent(state.Endpoint);
                             }
                             break;
                     }

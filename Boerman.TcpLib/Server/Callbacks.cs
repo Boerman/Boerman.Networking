@@ -56,7 +56,6 @@ namespace Boerman.TcpLib.Server
                 {
                     // We're disconnected
                     Disconnect(state.Guid);
-                    InvokeDisconnectedEvent(state.Endpoint);
                     return;
                 }
 
@@ -89,7 +88,6 @@ namespace Boerman.TcpLib.Server
                     try
                     {
                         Disconnect(handler.Key);
-                        InvokeDisconnectedEvent(handler.Value.Endpoint);
                         InvokeTimeoutEvent(handler.Value.Endpoint);
                     }
                     catch (Exception)

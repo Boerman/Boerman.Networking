@@ -61,7 +61,7 @@ namespace Boerman.TcpLib.Client
                     handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReceiveCallback, state);
                 }
                 else {
-                    InvokeDisconnectedEvent(state.Endpoint);
+                    Close();
 
                     // Don't ask what I need this for
                     if (_clientSettings.ReconnectOnDisconnect) {

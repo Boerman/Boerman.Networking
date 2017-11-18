@@ -1,25 +1,25 @@
 ﻿using System;
 using System.Net;
 
-namespace Boerman.TcpServer
+namespace Boerman.TcpClientExample
 {
     class Program
     {
         static void Main(string[] args)
         {
             // Create a new TcpServer listening on port 2626
-            var server = new TcpLib.Server.TcpServer(new IPEndPoint(IPAddress.Parse("0.0.0.0"), 2626));
-
-            server.Connected += (sender, e) => {
+            var client = new TcpLib.Client.TcpClient(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
+                                   
+            client.Connected += (sender, e) => {
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
             };
 
-            server.PartReceived += (sender, e) =>
+            client.PartReceived += (sender, e) =>
             {
                 Console.Write(e.Data);
             };
 
-            server.Disconnected += (sender, e) =>
+            client.Disconnected += (sender, e) =>
             {
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} disconnected");
             };

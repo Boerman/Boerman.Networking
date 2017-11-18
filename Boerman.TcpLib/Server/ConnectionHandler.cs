@@ -27,10 +27,8 @@ namespace Boerman.TcpLib.Server
                         // TcpClient is already closed. All we gotta do is remove all references. (Aaand the garbage man will clean the shit behind our backs.)
                         StateObject state = (StateObject) param.AsyncState;
 
-                        _handlers.TryRemove(state.Guid, out StateObject stateObject);
-
-
-                        InvokeDisconnectedEvent(stateObject.Endpoint);
+                        Disconnect(state.Guid);
+                        InvokeDisconnectedEvent(state.Endpoint);
                     }
                 }
                 catch (InvalidOperationException)
@@ -39,11 +37,9 @@ namespace Boerman.TcpLib.Server
                     {
                         // Tcp client isn't connected (We'd better clean up the resources.)
                         StateObject state = (StateObject) param.AsyncState;
-                        state.Socket.Dispose();
 
-                        _handlers.TryRemove(state.Guid, out StateObject stateObject);
-
-                        InvokeDisconnectedEvent(stateObject.Endpoint);
+                        Disconnect(state.Guid);
+                        InvokeDisconnectedEvent(state.Endpoint);
                     }
                 }
                 catch (SocketException ex)
@@ -54,12 +50,9 @@ namespace Boerman.TcpLib.Server
                             if (param.AsyncState is StateObject)
                             {
                                 var state = (StateObject) param.AsyncState;
-                                state.Socket.Dispose();
 
-                                StateObject stateObject;
-                                _handlers.TryRemove(state.Guid, out stateObject);
-
-                                InvokeDisconnectedEvent(stateObject.Endpoint);
+                                Disconnect(state.Guid);
+                                InvokeDisconnectedEvent(state.Endpoint);
                             }
                             break;
                     }

@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Boerman.TcpLib.Shared
+namespace Boerman.Networking
 {
     public class ConnectedEventArgs
     {

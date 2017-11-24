@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Boerman.TcpLib.Shared
+namespace Boerman.Networking
 {
     public static class Common
     {

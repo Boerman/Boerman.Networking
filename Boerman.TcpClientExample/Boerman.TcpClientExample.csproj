@@ -12,11 +12,11 @@
     <LangVersion>Latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Boerman.TcpLib\Boerman.TcpLib.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <None Update="EHAM4-May-28-2017-0800Z.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Boerman.Networking\Boerman.Networking.csproj" />
   </ItemGroup>
 </Project>

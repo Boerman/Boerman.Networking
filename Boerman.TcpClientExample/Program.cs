@@ -10,7 +10,7 @@ namespace Boerman.TcpClientExample
         static async Task Main(string[] args)
         {
             // Create a new TcpServer listening on port 2626
-            var client = new TcpLib.Client.TcpClient(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
+            var client = new Boerman.Networking.TcpClient(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
             //var client = new TcpLib.Client.TcpClient(new DnsEndPoint("google.com", 80)); // Add some http parser and we got ourselves a webclient
 
             client.Connected += (sender, e) => {
@@ -37,7 +37,7 @@ namespace Boerman.TcpClientExample
             do
             {
                 key = Console.ReadKey();
-                client.Send(key.KeyChar.ToString());
+                await client.Send(key.KeyChar.ToString());
             } while (key.Key != ConsoleKey.Escape);
         }
     }

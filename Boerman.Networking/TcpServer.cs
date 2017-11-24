@@ -5,9 +5,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using Boerman.TcpLib.Shared;
 
-namespace Boerman.TcpLib.Server
+namespace Boerman.Networking
 {
     public class TcpServer
     {
@@ -26,7 +25,6 @@ namespace Boerman.TcpLib.Server
             _settings = new ConnectionSettings
             {
                 EndPoint = endpoint,
-                Timeout = new TimeSpan(0, 0, 30),
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
@@ -239,8 +237,6 @@ namespace Boerman.TcpLib.Server
                 byte[] received = new byte[bytesRead];
                 Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
-                state.LastReceived = DateTime.UtcNow;
-
                 Common.InvokeEvent(
                     this,
                     DataReceived,
@@ -262,7 +258,6 @@ namespace Boerman.TcpLib.Server
             {
                 var client = result.AsyncState as StateObject;
                 client?.Socket.EndSend(result);
-                client.LastSend = DateTime.UtcNow;
             }, ar);
         }
     }

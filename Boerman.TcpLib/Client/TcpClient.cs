@@ -1,55 +1,45 @@
 ﻿using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
+using Boerman.TcpLib.Server;
 using Boerman.TcpLib.Shared;
 
 namespace Boerman.TcpLib.Client
 {
-    public partial class TcpClient
+    public class TcpClient
     {
-        private StateObject _state;
+        StateObject _state;
         
-        private readonly ClientSettings _clientSettings;
-
-        private readonly ManualResetEvent _isConnected = new ManualResetEvent(false);
-        private readonly ManualResetEvent _isSending = new ManualResetEvent(false);
-        private bool _isShuttingDown;
+        readonly ConnectionSettings _settings;
 
         public event EventHandler<DataReceivedEventArgs> DataReceived;
         public event EventHandler<ConnectedEventArgs> Connected;
         public event EventHandler<DisconnectedEventArgs> Disconnected;
 
-        public TcpClient(IPEndPoint endpoint)
+        public TcpClient(EndPoint endpoint)
         {
-            _clientSettings = new ClientSettings
+            _settings = new ConnectionSettings()
             {
                 EndPoint = endpoint,
-                ReconnectOnDisconnect = false,
+                Timeout = new TimeSpan(0, 0, 30),
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
-        public TcpClient(ClientSettings settings)
+        public TcpClient(ConnectionSettings settings)
         {
-            _clientSettings = settings;
+            _settings = settings;
         }
 
-        private void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
+        void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
         {
             try
             {
                 try
                 {
                     action(param);
-                }
-                catch (ObjectDisposedException)
-                {
-                    // I guess theh object should've been disposed. Try it.
-                    // Tcp client is already closed! Start it again.
-                    Open();
                 }
                 catch (SocketException ex)
                 {
@@ -58,11 +48,7 @@ namespace Boerman.TcpLib.Client
                     switch (ex.NativeErrorCode)
                     {
                         case 10054: // An existing connection was forcibly closed by the remote host
-                            if (_clientSettings.ReconnectOnDisconnect)
-                            {
-                                Close();
-                                Open();
-                            }
+                            Close();
                             break;
                         case 10061:
                             // No connection could be made because the target machine actively refused it. Do nuthin'
@@ -73,68 +59,93 @@ namespace Boerman.TcpLib.Client
                             break;
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Tcp client isn't connected (We'd better clean up the resources.)
-                    StateObject state = param.AsyncState as StateObject;
+                    System.Diagnostics.Trace.TraceError(ex.ToString());
 
-                    state?.Socket.Dispose();
-
-                    Open();
+                    Close();
                 }
             }
             catch (Exception)
             {
-                Environment.Exit(1);    // Aaand hopefully the service will be restarted.
+                Environment.Exit(1);
             }
         }
 
         /// <summary>
         /// Open the connection to a remote endpoint
         /// </summary>
-        public void Open()
+        public async Task<bool> Open()
         {
-            try
-            {
-                // Reset the variables which are set earlier
-                _isConnected.Reset();
-                _isSending.Reset();
+            /*
+             * To open a connection with a server is not exactly a synchronous 
+             * operation with a predefined execution time. Because of this, and 
+             * because it is almost always required to know whether the client 
+             * is connected or not the Open method is async. The implementation
+             * of this method makes sure a boolean value is returned indicating
+             * whether the connection has succesfully opened or not.
+             * 
+             * In the future it may be possible we remove the boolean return
+             * value in order to provide a more detailed return value indicating
+             * what might have gone wrong in case of an unsuccesfull connection.
+             * 
+             * -----------------------------------------------------------------
+             * 
+             * As the asynchronous programming pattern used with the `Socket` 
+             * class is not like the language standard we use the
+             * Task.Factory.FromAsync method to couple the Begin... and End...
+             * methods.
+             * 
+             * After there is an open connection we will immediately start to 
+             * listen for incoming data.
+             * 
+             */
 
-                // Continue trying until there's a connection.
-                bool success;
-                
-                do
-                {
-                    _state = new StateObject(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-                    _state.Socket.BeginConnect(_clientSettings.EndPoint, ConnectCallback, _state);
+            // ToDo: Instantiate a new StateObject in a somewhat more fancy way.
+            _state = new StateObject(new Socket(
+                AddressFamily.InterNetwork, 
+                SocketType.Stream, 
+                ProtocolType.Tcp));
 
-                    success = _isConnected.WaitOne(1000);
-                } while (!success);
+            bool isConnected = await Task.Factory.FromAsync(
+                (callback, state) => {
+                    return _state.Socket.BeginConnect(
+                        _settings.EndPoint, 
+                        new AsyncCallback(callback), state);
+                },
+                (arg) => {
+                    try
+                    {
+                        _state.Socket.EndConnect(arg);
+                        
+                        // Incoke the event to let the world know a connection
+                        // has been made. 
+                        Common.InvokeEvent(
+                            this, 
+                            Connected, 
+                            new ConnectedEventArgs(_settings.EndPoint));
+                        
+                        // Start listening for new data
+                        _state.Socket.BeginReceive(
+                            _state.ReceiveBuffer, 
+                            0, 
+                            _state.ReceiveBufferSize, 
+                            0, 
+                            new AsyncCallback(ReceiveCallback),
+                            _state);
+                    
+                    } catch (Exception ex) {
+                        // ToDo: return more detailed error information about why a connection could not be made
+                        System.Diagnostics.Trace.TraceError(ex.ToString());
 
-                // We are connected!
+                        return false;
+                    }
 
-                _isShuttingDown = false;
+                    return true;
+                },
+                null);  // The state can be null as we're in a pretty local context. No errors either.
 
-                Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_clientSettings.EndPoint));
-                
-                _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, ReceiveCallback,
-                    _state);
-            }
-            catch (SocketException ex)
-            {
-                switch (ex.NativeErrorCode)
-                {
-                    case 10054: // An existing connection was forcibly closed by the remote host
-                        if (_clientSettings.ReconnectOnDisconnect)
-                        {
-                            Close();
-                            Open();
-                        }
-                        break;
-                    default:
-                        throw;
-                }
-            }
+            return isConnected;
         }
 
         /// <summary>
@@ -144,42 +155,19 @@ namespace Boerman.TcpLib.Client
         {
             try
             {
-                _isShuttingDown = true;
-
                 if (_state.Socket.IsConnected())
                 {
-                    // There's no specific reason to set a timeout as this operation
-                    // should be completed pretty fast anyway.
-                    _isSending.WaitOne();
-                    _isSending.Reset();
-
-                    _isConnected.Reset();
-
                     _state.Socket.Shutdown(SocketShutdown.Both);
                     _state.Socket.Disconnect(false);
                 }
 
                 _state.Socket.Dispose();
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_clientSettings.EndPoint));
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_settings.EndPoint));
             }
-            catch (SocketException ex)
+            catch (Exception ex)
             {
-                if (ex.ErrorCode == 10038)
-                {
-                    // Something is done on not a socket... 
-                }
-                else if (ex.ErrorCode == 10004)
-                {
-                    // Some blocking call was interrupted.
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                // We can just ignore this one :)
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                throw;
             }
         }
 
@@ -189,7 +177,7 @@ namespace Boerman.TcpLib.Client
         /// <param name="message">Message</param>
         public void Send(string message)
         {
-            Send(_clientSettings.Encoding.GetBytes(message));
+            Send(_settings.Encoding.GetBytes(message));
         }
 
         /// <summary>
@@ -198,129 +186,65 @@ namespace Boerman.TcpLib.Client
         /// <param name="data">Data</param>
         public void Send(byte[] data)
         {
-            // Wait with the send process until we're connected.
-            // ToDo: Check whether we have to add some timeout in case no connection can be made
-            _isConnected.WaitOne();
-
-            _state.OutboundMessages.Enqueue(data);
-            
-            if (_isSending.WaitOne(0)) {
-                while (_state.OutboundMessages.Any())
-                {
-                    if (_isShuttingDown)
-                    {
-                        // Empty queue and return
-                        while (_state.OutboundMessages.Any())
-                        {
-                            byte[] removedData;
-                            _state.OutboundMessages.TryDequeue(out removedData);
-                        }
-
-                        return;
-                    }
-
-                    _state.OutboundMessages.TryDequeue(out _state.SendBuffer);
-
-                    try
-                    {
-                        // We can only send one message at a time.
-                        _state.Socket.BeginSend(_state.SendBuffer, 0, _state.SendBuffer.Length, 0, SendCallback,
-                            _state);
-                    }
-                    catch (SocketException ex)
-                    {
-                        switch (ex.NativeErrorCode)
-                        {
-                            case 32:    // Broken pipe
-                            case 10054: // An existing connection was forcibly closed by the remote host
-                                _isSending.Set(); // Otherwise the program will wait indefinitely.
-
-                                if (_clientSettings.ReconnectOnDisconnect)
-                                {
-                                    Close();
-                                    Open();
-                                }
-                                break;
-                            default:
-                                throw;
-                        }
-                    }
-
-                    // Wait until we're cleared to send another message
-                    _isSending.WaitOne();
-                }
+            if (_state == null || !_state.Socket.IsConnected()) {
+                throw new Exception("Connection is not open");  // ToDo: return some information about the status of the operation (even if it's just a bool or something)
             }
+
+            _state.Socket.BeginSend(data, 0, data.Length, 0, new AsyncCallback(SendCallback), _state);
         }
 
-        private void ConnectCallback(IAsyncResult ar)
+        //void ConnectCallback(IAsyncResult ar)
+        //{
+        //    try
+        //    {
+        //        StateObject state = (StateObject)ar.AsyncState;
+        //        state.Socket.EndConnect(ar);
+
+        //        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_settings.EndPoint));
+
+        //        _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReceiveCallback),
+        //            _state);
+        //    } catch (Exception ex) {
+                
+        //    }
+        //}
+
+        void SendCallback(IAsyncResult ar)
         {
             ExecuteFunction(delegate (IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
-                state.Socket.EndConnect(result);
+                int bytesSend = state.Socket.EndSend(result);
 
-                _isConnected.Set();
-                _isSending.Set();
+                _state.LastSend = DateTime.UtcNow;
             }, ar);
         }
 
-        private void SendCallback(IAsyncResult ar)
-        {
-            StateObject state = null;
-            int bytesSend = 0;
-
-            ExecuteFunction(delegate (IAsyncResult result)
-            {
-                state = (StateObject)result.AsyncState;
-                bytesSend = state.Socket.EndSend(result);
-            }, ar);
-
-            // If code down here is put in the `ExecuteFunction` wrapper and shit hits the fan
-            // `_isSending` reset event would never be set thus never allowing the socket to close.
-            if (state == null)
-            {
-                // Just make sure the program can continue running.
-                _isSending.Set();
-                return;
-            }
-
-            state.SendBuffer = state.SendBuffer.Skip(bytesSend).ToArray();
-
-            _isSending.Set();
-        }
-
-        private void ReceiveCallback(IAsyncResult ar)
+        void ReceiveCallback(IAsyncResult ar)
         {
             ExecuteFunction(delegate (IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
-                state.LastConnection = DateTime.UtcNow;
 
                 Socket handler = state.Socket;
 
-                if (handler.IsConnected())
-                {
-                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReceiveCallback, state);
-                }
-                else
+                int bytesRead = handler.EndReceive(result);
+
+                if (!handler.IsConnected())
                 {
                     Close();
-
-                    // Don't ask what I need this for
-                    if (_clientSettings.ReconnectOnDisconnect)
-                    {
-                        Close();
-                        Open();
-                    }
-
                     return;
                 }
 
-                int bytesRead = handler.EndReceive(result);
+                byte[] received = state.ReceiveBuffer;
+                handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReceiveCallback), state);
 
-                var str = _clientSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
+                Common.InvokeEvent(
+                    this, 
+                    DataReceived, 
+                    new DataReceivedEventArgs(state.Endpoint, received));
 
-                Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(str, state.Endpoint));
+                _state.LastReceived = DateTime.UtcNow;
             }, ar);
         }
     }

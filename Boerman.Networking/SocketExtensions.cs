@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 
-namespace Boerman.TcpLib.Shared
+namespace Boerman.Networking
 {
     public static class SocketExtensions
     {

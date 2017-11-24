@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 
-namespace Boerman.TcpLib.Shared
+namespace Boerman.Networking
 {
     public class DataReceivedEventArgs
     {

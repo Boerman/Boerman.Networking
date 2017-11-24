@@ -8,7 +8,7 @@ namespace Boerman.TcpServer
     {
         static void Main(string[] args)
         {
-            var server = new TcpLib.Server.TcpServer(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
+            var server = new Boerman.Networking.TcpServer(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
 
             server.Connected += (sender, e) => {
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");

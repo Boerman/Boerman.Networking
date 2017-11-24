@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Net;
 
-namespace Boerman.TcpLib.Shared
+namespace Boerman.Networking
 {
-    public class TimeoutEventArgs
+    public class DisconnectedEventArgs
     {
-        public TimeoutEventArgs(EndPoint endpoint)
+        public DisconnectedEventArgs(EndPoint endpoint)
         {
             Endpoint = endpoint;
             TimeStamp = DateTime.UtcNow;
         }
 
-        public DateTime TimeStamp { get; }
         public EndPoint Endpoint { get; }
+        public DateTime TimeStamp { get; }
     }
 }

@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Boerman.Networking
 {
-    public class ConnectionSettings
+    internal class ConnectionSettings
     {
         public EndPoint EndPoint { get; set; }
         public Encoding Encoding { get; set; }

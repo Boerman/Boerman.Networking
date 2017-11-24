@@ -16,7 +16,10 @@ namespace Boerman.Networking
 
         public TcpClient()
         {
-            _state = new StateObject();
+            _state = new StateObject()
+            {
+                Encoding = Encoding.GetEncoding("utf-8")
+            };
         }
 
         public TcpClient(Encoding encoding) {

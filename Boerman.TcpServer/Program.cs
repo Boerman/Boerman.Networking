@@ -15,13 +15,9 @@ namespace Boerman.TcpServer
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
             };
 
-            Stream stream = new FileStream("./file.mp4", FileMode.Create, FileAccess.Write);
-            int byteCounter = 0;
             server.DataReceived += (sender, e) =>
             {
-                stream.Write(e.Bytes, 0, e.Bytes.Length);
-                stream.Flush();
-                byteCounter += e.Bytes.Length;
+                Console.Write(e.Data);
             };
 
             server.Disconnected += (sender, e) =>

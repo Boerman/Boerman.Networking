@@ -9,32 +9,29 @@ namespace Boerman.Networking
     public class TcpClient
     {
         StateObject _state;
-        
-        readonly ConnectionSettings _settings;
 
         public event EventHandler<DataReceivedEventArgs> DataReceived;
         public event EventHandler<ConnectedEventArgs> Connected;
         public event EventHandler<DisconnectedEventArgs> Disconnected;
 
-        public TcpClient(EndPoint endpoint)
+        public TcpClient()
         {
-            _settings = new ConnectionSettings()
+            _state = new StateObject();
+        }
+
+        public TcpClient(Encoding encoding) {
+            _state = new StateObject()
             {
-                EndPoint = endpoint,
-                Encoding = Encoding.GetEncoding("utf-8")
+                Encoding = encoding
             };
         }
 
-        public TcpClient(ConnectionSettings settings)
-        {
-            _settings = settings;
-        }
 
         /// <summary>
         /// Open the connection to the remote endpoint.
         /// </summary>
         /// <returns>Boolean indicating whether the connection is open or not</returns>
-        public async Task<bool> Open()
+        public async Task<bool> Open(EndPoint endpoint)
         {
             /*
              * To open a connection with a server is not exactly a synchronous 
@@ -60,25 +57,25 @@ namespace Boerman.Networking
              * 
              */
 
-            // ToDo: Instantiate a new StateObject in a somewhat more fancy way.
-            _state = new StateObject(new Socket(
-                AddressFamily.InterNetwork, 
-                SocketType.Stream, 
-                ProtocolType.Tcp));
+            _state.EndPoint = endpoint;
+
+            _state.Socket = new Socket(
+                AddressFamily.InterNetwork,
+                SocketType.Stream,
+                ProtocolType.Tcp);
 
             bool isConnected = await Task.Factory.FromAsync(
-                (callback, state) => {
-                    return _state.Socket.BeginConnect(_settings.EndPoint, new AsyncCallback(callback), state);
-                }, (arg) => {
+                (callback, state) => _state.Socket.BeginConnect(_state.EndPoint, new AsyncCallback(callback), state),
+                (arg) => {
                     try
                     {
                         _state.Socket.EndConnect(arg);
                         
                         // Incoke the event to let the world know a connection has been made
-                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_settings.EndPoint));
+                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
                         
                         // Start listening for new data
-                        _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReceiveCallback), _state);
+                        _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), _state);
                     
                     } catch (Exception ex) {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
@@ -107,7 +104,7 @@ namespace Boerman.Networking
 
                 _state.Socket.Dispose();
 
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_settings.EndPoint));
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
             }
             catch (Exception ex)
             {
@@ -123,7 +120,7 @@ namespace Boerman.Networking
         /// <param name="message">Message.</param>
         public async Task<bool> Send(string message)
         {
-            return await Send(_settings.Encoding.GetBytes(message));
+            return await Send(_state.Encoding.GetBytes(message));
         }
 
         /// <summary>
@@ -137,35 +134,32 @@ namespace Boerman.Networking
 
             int dataLength = data.Length;
 
-            int bytesSent = await Task.Factory.FromAsync((callback, state) =>
-            {
-                return _state.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state);
-            }, (arg) =>
-            {
-                try
+            int bytesSent = await Task.Factory.FromAsync(
+                (callback, state) => _state.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state),
+                (arg) =>
                 {
-                    return _state.Socket.EndSend(arg);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Trace.TraceError(ex.ToString());
-                    return 0;
-                }
-            }, null);
+                    try
+                    {
+                        return _state.Socket.EndSend(arg);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Trace.TraceError(ex.ToString());
+                        return 0;
+                    }
+                }, null);
 
             if (bytesSent == dataLength) return true;
 
             return false;
         }
 
-        void ReceiveCallback(IAsyncResult result)
+        void ReadCallback(IAsyncResult result)
         {
             /*
              * The ReceiveCallback method makes sure incoming data is being read
              * and that events are being fired to notify subscribers.
              */
-
-            int bytesRead = _state.Socket.EndReceive(result);
 
             if (!_state.Socket.IsConnected())
             {
@@ -173,12 +167,14 @@ namespace Boerman.Networking
                 return;
             }
 
+            int bytesRead = _state.Socket.EndReceive(result);
+
             byte[] received = new byte[bytesRead];
             Array.Copy(_state.ReceiveBuffer, received, bytesRead);
 
-            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(_state.Endpoint, received));
+            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(_state.EndPoint, received));
 
-            _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReceiveCallback), null);
+            _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), null);
         }
     }
 }

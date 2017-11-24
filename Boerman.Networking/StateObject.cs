@@ -1,27 +1,27 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace Boerman.Networking
 {
     class StateObject
     {
-        internal StateObject(Socket socket, int receiveBufferSize = 65535)
+        internal StateObject(int receiveBufferSize = 65535)
         {
-            Socket = socket;
-            Endpoint = socket.RemoteEndPoint;
-
             ReceiveBufferSize = receiveBufferSize;
             ReceiveBuffer = new byte[ReceiveBufferSize];
         }
 
-        public Socket Socket { get; }
+        internal Socket Socket { get; set; }
 
-        public int ReceiveBufferSize { get; }
+        internal int ReceiveBufferSize { get; }
 
         internal byte[] ReceiveBuffer;
 
         // Do NOT retrieve this value from the Socket as it isn't available
         // anymore after the socket is disposed.
-        public EndPoint Endpoint { get; set; }
+        internal EndPoint EndPoint { get; set; }
+
+        internal Encoding Encoding { get; set; }
     }
 }

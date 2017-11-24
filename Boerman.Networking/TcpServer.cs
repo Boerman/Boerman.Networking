@@ -5,13 +5,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Boerman.Networking
 {
     public class TcpServer
     {
         readonly ConcurrentDictionary<EndPoint, StateObject> _handlers = new ConcurrentDictionary<EndPoint, StateObject>();
-        // ToDo: Replace the _tcpServerActive ManualResetEvent with a CancellationToken
         readonly ManualResetEvent _tcpServerActive = new ManualResetEvent(false);
 
         readonly ConnectionSettings _settings;
@@ -29,73 +29,32 @@ namespace Boerman.Networking
             };
         }
 
-        public TcpServer(ConnectionSettings settings)
-        {
-            _settings = settings;
+        public TcpServer(IPEndPoint endpoint, Encoding encoding) {
+            _settings = new ConnectionSettings()
+            {
+                EndPoint = endpoint,
+                Encoding = encoding
+            };
         }
 
-        public void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
+        public bool Start()
         {
-            try
-            {
-                try
-                {
-                    action(param);
-                }
-                catch (SocketException ex)
-                {
-                    switch (ex.NativeErrorCode)
-                    {
-                        case 10054: // Force disconnect
-                            if (param.AsyncState is StateObject)
-                            {
-                                var state = (StateObject)param.AsyncState;
-                                Disconnect(state.Endpoint);
-                            }
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Trace.TraceError(ex.ToString());
-
-                    if (param.AsyncState is StateObject) {
-                        var state = (StateObject)param.AsyncState;
-                        Disconnect(state.Endpoint);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                Environment.Exit(1);
-            }
-        }
-
-        /// <summary>
-        /// Start this instance.
-        /// </summary>
-        public void Start()
-        {
-            if (_tcpServerActive.WaitOne(0)) return;
+            if (_tcpServerActive.WaitOne(0)) return true;
 
             _tcpServerActive.Reset();
 
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            try
-            {
+            try {
                 listener.Bind(_settings.EndPoint);
-            } catch (SocketException ex) {
-                if (ex.NativeErrorCode == 48) { // Address already in use
-                    // ToDo: Add some usable logging information
-                    throw;  // Rethrow
-                }
+                listener.Listen(1000);
+            } catch (Exception ex) {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+                return false;
             }
 
-            listener.Listen(1000); // The number of allowed pending connections
-
-            // Get ready to accept the first connection
             listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+            return true;
         }
 
         /// <summary>
@@ -107,17 +66,12 @@ namespace Boerman.Networking
             if (!_tcpServerActive.WaitOne(0)) return;
 
             // Stop the tcp server and ditch all the connections.
-            foreach (var handler in _handlers)
-            {
-                handler.Value.Socket.Dispose();
-                StateObject stateObject;
-                _handlers.TryRemove(handler.Key, out stateObject);
-            }
+            foreach (var handler in _handlers) Disconnect(handler.Key);
+
             _tcpServerActive.Set();
         }
 
-        public void Disconnect(EndPoint endpoint, bool cleanUpOnly = false)
-        {
+        private void Disconnect(EndPoint endpoint, bool cleanUpOnly) {
             StateObject client;
             _handlers.TryGetValue(endpoint, out client);
             if (client == null) return;
@@ -134,52 +88,82 @@ namespace Boerman.Networking
 
             if (!cleanUpOnly)
             {
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.Endpoint));
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
             }
         }
 
-        #region Send functions
-        public void Send(EndPoint endpoint, string message)
+        public void Disconnect(EndPoint endpoint)
         {
-            // Send the message.
-            Send(endpoint, _settings.Encoding.GetBytes(message));
-        }
-
-        public void Send(EndPoint endpoint, byte[] data)
-        {
-            // Check if this specific item is available.
-            StateObject client;
-            _handlers.TryGetValue(endpoint, out client);
-
-            if (client == null || !client.Socket.IsConnected()) return;
-
-            // Send the message.
-            client.Socket.BeginSend(data, 0, data.Length, 0, new AsyncCallback(SendCallback), client);
+            Disconnect(endpoint, false);
         }
 
         /// <summary>
-        /// Will send the message to all connected clients
+        /// Send the message to the specified endpoint
+        /// </summary>
+        /// <returns>A boolean value indicating whther the message was sent correctly</returns>
+        /// <param name="endpoint">Endpoint.</param>
+        /// <param name="message">Message.</param>
+        public async Task<bool> Send(EndPoint endpoint, string message)
+        {
+            // Send the message.
+            return await Send(endpoint, _settings.Encoding.GetBytes(message));
+        }
+
+        /// <summary>
+        /// Send the data to the specified endpoint
+        /// </summary>
+        /// <returns>A boolean value indicating whther the data was sent correctly</returns>
+        /// <param name="endpoint">Endpoint.</param>
+        /// <param name="data">Data.</param>
+        public async Task<bool> Send(EndPoint endpoint, byte[] data)
+        {
+            _handlers.TryGetValue(endpoint, out StateObject clientState);
+
+            if (clientState == null || !clientState.Socket.IsConnected()) return false;
+
+            int dataLength = data.Length;
+
+            int bytesSent = await Task.Factory.FromAsync(
+                (callback, state) => clientState.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state),
+                (arg) =>
+                {
+                    try
+                    {
+                        return clientState.Socket.EndSend(arg);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Trace.TraceError(ex.ToString());
+                        return 0;
+                    }
+                }, null);
+
+            if (bytesSent == dataLength) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Send the message to all clients
         /// </summary>
         /// <param name="message">Message</param>
-        public void Send(string message)
+        public async Task Send(string message)
         {
-            Send(_settings.Encoding.GetBytes(message));
+            await Send(_settings.Encoding.GetBytes(message));
         }
 
         /// <summary>
-        /// Will send the data to all connected clients
+        /// Send the data to all clients
         /// </summary>
-        /// <param name="data">Data</param>
-        public void Send(byte[] data)
+        /// <param name="data">Data.</param>
+        public async Task Send(byte[] data)
         {
             foreach (var handler in _handlers.Values)
             {
                 if (handler == null) continue;
-
-                Send(handler.Endpoint, data);
+                await Send(handler.EndPoint, data);
             }
         }
-        #endregion
 
         /// <summary>
         /// Returns the current number of connected clients
@@ -190,75 +174,50 @@ namespace Boerman.Networking
             return _handlers.Count();
         }
 
-        /// <summary>
-        /// The callback used after a connection is accepted.
-        /// </summary>
-        /// <param name="ar"></param>
-        internal void AcceptCallback(IAsyncResult ar)
+        internal void AcceptCallback(IAsyncResult result)
         {
-            ExecuteFunction(delegate (IAsyncResult result)
-            {
-                var listener = ((Socket)result.AsyncState);
+            var listener = ((Socket)result.AsyncState);
 
-                // End the accept and get ready to accept a new connection.
-                Socket handler = listener.EndAccept(result);
+            // End the accept and get ready to accept a new connection.
+            Socket handler = listener.EndAccept(result);
+            listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
-                var state = new StateObject(handler);
-                _handlers.TryAdd(state.Endpoint, state);
+            var state = new StateObject() {
+                Socket = handler,
+                EndPoint = handler.RemoteEndPoint
+            };
 
-                Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.Endpoint));
+            _handlers.TryAdd(state.EndPoint, state);
 
-                listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+            Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.EndPoint));
 
-                if (state != null) // Bug: When this happens something probably went wrong within the _handlers.TryGetValue call
-                {
-                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
-                }
-            }, ar);
+            try {
+                handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
+            } catch (Exception ex) {
+                System.Diagnostics.Trace.TraceError(ex.ToString());
+            }
         }
 
-        /// <summary>
-        ///  The callback used after a read event is accepted.
-        /// </summary>
-        /// <param name="ar"></param>
-        internal void ReadCallback(IAsyncResult ar)
+        internal void ReadCallback(IAsyncResult result)
         {
-            ExecuteFunction(delegate (IAsyncResult result)
+            StateObject state = (StateObject)result.AsyncState;
+            Socket handler = state.Socket;
+
+            if (!handler.IsConnected())
             {
-                StateObject state = (StateObject)result.AsyncState;
-                Socket handler = state.Socket;
+                Disconnect(state.EndPoint);
+                return;
+            }
 
-                if (!handler.IsConnected()) {
-                    Disconnect(state.Endpoint);
-                    return;
-                }
+            int bytesRead = handler.EndReceive(result);
 
-                int bytesRead = handler.EndReceive(result);
-                byte[] received = new byte[bytesRead];
-                Array.Copy(state.ReceiveBuffer, received, bytesRead);
+            byte[] received = new byte[bytesRead];
+            Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
-                Common.InvokeEvent(
-                    this,
-                    DataReceived,
-                    new DataReceivedEventArgs(state.Endpoint, received));
+            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(state.EndPoint, received));
 
-                // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
-                handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
-                                     new AsyncCallback(ReadCallback), state);
-            }, ar);
-        }
-
-        /// <summary>
-        ///  The callback used after data is sent over the socket.
-        /// </summary>
-        /// <param name="ar"></param>
-        internal void SendCallback(IAsyncResult ar)
-        {
-            ExecuteFunction(delegate (IAsyncResult result)
-            {
-                var client = result.AsyncState as StateObject;
-                client?.Socket.EndSend(result);
-            }, ar);
+            // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
+            handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
         }
     }
 }

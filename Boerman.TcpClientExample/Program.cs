@@ -25,10 +25,8 @@ namespace Boerman.TcpClientExample
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} disconnected");
             };
 
-            if (!await client.Open(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626))) {
-                Console.WriteLine("Not open");
-            } else {
-                Console.WriteLine("Open");
+            while (!await client.Open(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626))) {
+                Console.WriteLine($"{DateTime.UtcNow}: Trying to connect...");
             }
 
             ConsoleKeyInfo key;

@@ -5,51 +5,37 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Timers;
 using Boerman.TcpLib.Shared;
-using Timer = System.Timers.Timer;
 
 namespace Boerman.TcpLib.Server
 {
-    public partial class TcpServer
+    public class TcpServer
     {
-        private readonly ConcurrentDictionary<Guid, StateObject> _handlers = new ConcurrentDictionary<Guid, StateObject>();
+        readonly ConcurrentDictionary<EndPoint, StateObject> _handlers = new ConcurrentDictionary<EndPoint, StateObject>();
         // ToDo: Replace the _tcpServerActive ManualResetEvent with a CancellationToken
-        private readonly ManualResetEvent _tcpServerActive                 = new ManualResetEvent(false);
-        private readonly ServerSettings _serverSettings;
+        readonly ManualResetEvent _tcpServerActive = new ManualResetEvent(false);
+
+        readonly ConnectionSettings _settings;
 
         public event EventHandler<DataReceivedEventArgs> DataReceived;
         public event EventHandler<DisconnectedEventArgs> Disconnected;
         public event EventHandler<ConnectedEventArgs> Connected;
-        public event EventHandler<TimeoutEventArgs> Timeout;
 
-        /// <summary>
-        /// The timer being used to register timeouts on the sockets.
-        /// </summary>
-        private readonly Timer _timeoutTimer = new Timer(1000);
-        
         public TcpServer(IPEndPoint endpoint)
         {
-            _serverSettings = new ServerSettings
+            _settings = new ConnectionSettings
             {
-                IpEndPoint = endpoint,
-                ClientTimeout = 30000,
-                ReuseAddress = false,
+                EndPoint = endpoint,
+                Timeout = new TimeSpan(0, 0, 30),
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
-        public TcpServer(ServerSettings serverSettings)
+        public TcpServer(ConnectionSettings settings)
         {
-            _serverSettings = serverSettings;
+            _settings = settings;
         }
 
-        /// <summary>
-        /// This function executes the given function and handles exceptions, if any.
-        /// </summary>
-        /// <param name="action">The action to execute.</param>
-        /// <param name="param">The param with which the action has to be executed.</param>
-        /// <returns></returns>
         public void ExecuteFunction(Action<IAsyncResult> action, IAsyncResult param)
         {
             try
@@ -57,26 +43,6 @@ namespace Boerman.TcpLib.Server
                 try
                 {
                     action(param);
-                }
-                catch (ObjectDisposedException)
-                {
-                    if (param.AsyncState is StateObject)
-                    {
-                        // TcpClient is already closed. All we gotta do is remove all references. (Aaand the garbage man will clean the shit behind our backs.)
-                        StateObject state = (StateObject)param.AsyncState;
-
-                        Disconnect(state.Guid);
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    if (param.AsyncState is StateObject)
-                    {
-                        // Tcp client isn't connected (We'd better clean up the resources.)
-                        StateObject state = (StateObject)param.AsyncState;
-
-                        Disconnect(state.Guid);
-                    }
                 }
                 catch (SocketException ex)
                 {
@@ -86,28 +52,24 @@ namespace Boerman.TcpLib.Server
                             if (param.AsyncState is StateObject)
                             {
                                 var state = (StateObject)param.AsyncState;
-
-                                Disconnect(state.Guid);
+                                Disconnect(state.Endpoint);
                             }
                             break;
                     }
                 }
-                catch (NullReferenceException)
+                catch (Exception ex)
                 {
-                    // If this happens we're really far away! Restart the socket listener!
-                    Restart();
-                }
-                catch (OutOfMemoryException)
-                {
-                    throw;
-                }
-                catch (Exception)
-                {
+                    System.Diagnostics.Trace.TraceError(ex.ToString());
+
+                    if (param.AsyncState is StateObject) {
+                        var state = (StateObject)param.AsyncState;
+                        Disconnect(state.Endpoint);
+                    }
                 }
             }
             catch (Exception)
             {
-                Environment.Exit(1);        // MAYDAY MAYDAY MAYDAY
+                Environment.Exit(1);
             }
         }
 
@@ -118,19 +80,13 @@ namespace Boerman.TcpLib.Server
         {
             if (_tcpServerActive.WaitOne(0)) return;
 
-            // Enable the timer. Make sure it's only registered once.
-            _timeoutTimer.Elapsed -= TimeoutTimerOnElapsed;
-            _timeoutTimer.Elapsed += TimeoutTimerOnElapsed;
-            _timeoutTimer.Start();
-            
             _tcpServerActive.Reset();
 
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, _serverSettings.ReuseAddress);
 
             try
             {
-                listener.Bind(_serverSettings.IpEndPoint);
+                listener.Bind(_settings.EndPoint);
             } catch (SocketException ex) {
                 if (ex.NativeErrorCode == 48) { // Address already in use
                     // ToDo: Add some usable logging information
@@ -141,7 +97,7 @@ namespace Boerman.TcpLib.Server
             listener.Listen(1000); // The number of allowed pending connections
 
             // Get ready to accept the first connection
-            listener.BeginAccept(AcceptCallback, listener);
+            listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
         }
 
         /// <summary>
@@ -150,10 +106,7 @@ namespace Boerman.TcpLib.Server
         public void Stop()
         {
             // The TCP server is not running so no need to stop it.
-            if (_tcpServerActive.WaitOne(0)) return;
-
-            // Stop the timer as all connections are about to be ditched anyway.
-            _timeoutTimer.Stop();
+            if (!_tcpServerActive.WaitOne(0)) return;
 
             // Stop the tcp server and ditch all the connections.
             foreach (var handler in _handlers)
@@ -165,23 +118,10 @@ namespace Boerman.TcpLib.Server
             _tcpServerActive.Set();
         }
 
-        /// <summary>
-        /// Restart this instance.
-        /// </summary>
-        public void Restart()
-        {
-            Stop();
-            Start();
-        }
-
-        /// <summary>
-        /// Disconnect the specified client.
-        /// </summary>
-        /// <param name="clientId">Client</param>
-        public void Disconnect(Guid clientId)
+        public void Disconnect(EndPoint endpoint, bool cleanUpOnly = false)
         {
             StateObject client;
-            _handlers.TryGetValue(clientId, out client);
+            _handlers.TryGetValue(endpoint, out client);
             if (client == null) return;
 
             if (client.Socket.IsConnected())
@@ -192,38 +132,31 @@ namespace Boerman.TcpLib.Server
 
             client.Socket.Dispose();
 
-            _handlers.TryRemove(clientId, out _);
+            _handlers.TryRemove(endpoint, out _);
 
-            Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.Endpoint));
+            if (!cleanUpOnly)
+            {
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.Endpoint));
+            }
         }
 
         #region Send functions
-        /// <summary>
-        /// Send the message to a specified client
-        /// </summary>
-        /// <param name="clientId">Client identifier</param>
-        /// <param name="message">Message</param>
-        public void Send(Guid clientId, string message)
+        public void Send(EndPoint endpoint, string message)
         {
             // Send the message.
-            Send(clientId, _serverSettings.Encoding.GetBytes(message));
+            Send(endpoint, _settings.Encoding.GetBytes(message));
         }
 
-        /// <summary>
-        /// Send the data to a specified client
-        /// </summary>
-        /// <param name="clientId">Client identifier</param>
-        /// <param name="data">Data</param>
-        public void Send(Guid clientId, byte[] data)
+        public void Send(EndPoint endpoint, byte[] data)
         {
             // Check if this specific item is available.
             StateObject client;
-            _handlers.TryGetValue(clientId, out client);
+            _handlers.TryGetValue(endpoint, out client);
 
             if (client == null || !client.Socket.IsConnected()) return;
 
             // Send the message.
-            client.Socket.BeginSend(data, 0, data.Length, 0, SendCallback, client);        
+            client.Socket.BeginSend(data, 0, data.Length, 0, new AsyncCallback(SendCallback), client);
         }
 
         /// <summary>
@@ -232,7 +165,7 @@ namespace Boerman.TcpLib.Server
         /// <param name="message">Message</param>
         public void Send(string message)
         {
-            Send(_serverSettings.Encoding.GetBytes(message));
+            Send(_settings.Encoding.GetBytes(message));
         }
 
         /// <summary>
@@ -245,7 +178,7 @@ namespace Boerman.TcpLib.Server
             {
                 if (handler == null) continue;
 
-                Send(handler.Guid, data);
+                Send(handler.Endpoint, data);
             }
         }
         #endregion
@@ -273,15 +206,15 @@ namespace Boerman.TcpLib.Server
                 Socket handler = listener.EndAccept(result);
 
                 var state = new StateObject(handler);
-                _handlers.TryAdd(state.Guid, state);
+                _handlers.TryAdd(state.Endpoint, state);
 
                 Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.Endpoint));
 
-                listener.BeginAccept(AcceptCallback, listener);
+                listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
                 if (state != null) // Bug: When this happens something probably went wrong within the _handlers.TryGetValue call
                 {
-                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, ReadCallback, state);
+                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
                 }
             }, ar);
         }
@@ -295,27 +228,27 @@ namespace Boerman.TcpLib.Server
             ExecuteFunction(delegate (IAsyncResult result)
             {
                 StateObject state = (StateObject)result.AsyncState;
-                state.LastConnection = DateTime.UtcNow;
-
                 Socket handler = state.Socket;
 
-                if (handler.IsConnected())
-                {
-                    // Immediately go get some more data
-                    handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
-                        ReadCallback, state);
-                }
-                else
-                {
-                    // We're disconnected
-                    Disconnect(state.Guid);
+                if (!handler.IsConnected()) {
+                    Disconnect(state.Endpoint);
                     return;
                 }
 
                 int bytesRead = handler.EndReceive(result);
+                byte[] received = new byte[bytesRead];
+                Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
-                var str = _serverSettings.Encoding.GetString(state.ReceiveBuffer, 0, bytesRead);
-                Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(str, state.Endpoint));
+                state.LastReceived = DateTime.UtcNow;
+
+                Common.InvokeEvent(
+                    this,
+                    DataReceived,
+                    new DataReceivedEventArgs(state.Endpoint, received));
+
+                // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
+                handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0,
+                                     new AsyncCallback(ReadCallback), state);
             }, ar);
         }
 
@@ -329,19 +262,8 @@ namespace Boerman.TcpLib.Server
             {
                 var client = result.AsyncState as StateObject;
                 client?.Socket.EndSend(result);
+                client.LastSend = DateTime.UtcNow;
             }, ar);
-        }
-
-        private void TimeoutTimerOnElapsed(object sender, ElapsedEventArgs elapsedEventArgs)
-        {
-            foreach (var handler in _handlers)
-            {
-                if ((DateTime.UtcNow - handler.Value.LastConnection).TotalMilliseconds > _serverSettings.ClientTimeout)
-                {
-                    Disconnect(handler.Key);
-                    Common.InvokeEvent(this, Timeout, new TimeoutEventArgs(handler.Value.Endpoint));
-                }
-            }
         }
     }
 }

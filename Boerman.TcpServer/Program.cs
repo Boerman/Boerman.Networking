@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 
 namespace Boerman.TcpServer
@@ -7,16 +8,19 @@ namespace Boerman.TcpServer
     {
         static void Main(string[] args)
         {
-            // Create a new TcpServer listening on port 2626
             var server = new TcpLib.Server.TcpServer(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
 
             server.Connected += (sender, e) => {
                 Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
             };
 
+            Stream stream = new FileStream("./file.mp4", FileMode.Create, FileAccess.Write);
+            int byteCounter = 0;
             server.DataReceived += (sender, e) =>
             {
-                Console.Write(e.Data);
+                stream.Write(e.Bytes, 0, e.Bytes.Length);
+                stream.Flush();
+                byteCounter += e.Bytes.Length;
             };
 
             server.Disconnected += (sender, e) =>
@@ -32,6 +36,8 @@ namespace Boerman.TcpServer
                 key = Console.ReadKey();
                 server.Send(key.KeyChar.ToString());
             } while (key.Key != ConsoleKey.Escape);
+
+            server.Stop();
         }
     }
 }

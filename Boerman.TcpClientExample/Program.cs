@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -12,7 +11,7 @@ namespace Boerman.TcpClientExample
             var client = new Boerman.Networking.TcpClient();
 
             client.Connected += (sender, e) => {
-                Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
+                Console.WriteLine($"{e.TimeStamp}: {e.EndPoint} connected");
             };
 
             client.DataReceived += (sender, e) =>
@@ -22,7 +21,7 @@ namespace Boerman.TcpClientExample
 
             client.Disconnected += (sender, e) =>
             {
-                Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} disconnected");
+                Console.WriteLine($"{e.TimeStamp}: {e.EndPoint} disconnected");
             };
 
             while (!await client.Open(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626))) {

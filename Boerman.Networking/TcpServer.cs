@@ -214,7 +214,7 @@ namespace Boerman.Networking
             byte[] received = new byte[bytesRead];
             Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
-            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(state.EndPoint, received));
+            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
 
             // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
             handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);

@@ -5,13 +5,13 @@ namespace Boerman.Networking
 {
     public class ConnectedEventArgs
     {
-        public ConnectedEventArgs(EndPoint endpoint)
+        internal ConnectedEventArgs(EndPoint endpoint)
         {
-            Endpoint = endpoint;
+            EndPoint = endpoint;
             TimeStamp = DateTime.UtcNow;
         }
 
-        public EndPoint Endpoint { get; }
-        public DateTime TimeStamp { get; set; }
+        public EndPoint EndPoint { get; }
+        public DateTime TimeStamp { get; }
     }
 }

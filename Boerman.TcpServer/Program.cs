@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -12,7 +11,7 @@ namespace Boerman.TcpServer
             var server = new Boerman.Networking.TcpServer(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626));
 
             server.Connected += (sender, e) => {
-                Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} connected");
+                Console.WriteLine($"{e.TimeStamp}: {e.EndPoint} connected");
             };
 
             server.DataReceived += (sender, e) =>
@@ -22,7 +21,7 @@ namespace Boerman.TcpServer
 
             server.Disconnected += (sender, e) =>
             {
-                Console.WriteLine($"{e.TimeStamp}: {e.Endpoint} disconnected");
+                Console.WriteLine($"{e.TimeStamp}: {e.EndPoint} disconnected");
             };
 
             server.Start();

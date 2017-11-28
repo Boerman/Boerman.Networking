@@ -2,7 +2,7 @@
 using System.Net;
 using System.Threading.Tasks;
 
-namespace Boerman.TcpServer
+namespace Boerman.TcpServerExample
 {
     class Program
     {

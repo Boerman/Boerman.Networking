@@ -2,6 +2,19 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackOnBuild>true</PackOnBuild>
+    <Authors>Corstian Boerman</Authors>
+    <PackageIconUrl>http://docs.boerman.co/images/emblem.svg</PackageIconUrl>
+    <PackageLicenseUrl>https://github.com/Boerman/Boerman.Networking/blob/master/LICENSE.md</PackageLicenseUrl>
+    <Owners>The Boerman Company</Owners>
+    <PackageProjectUrl>http://docs.boerman.co/Libraries/Networking/getting-started/</PackageProjectUrl>
+    <Title>Boerman.Networking</Title>
+    <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
+    <PackageId>Boerman.Networking</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="NuGet.Build.Packaging" Version="0.2.1" />
+  </ItemGroup>
 </Project>

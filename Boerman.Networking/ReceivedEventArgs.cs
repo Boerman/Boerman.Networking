@@ -3,15 +3,15 @@ using System.Text;
 
 namespace Boerman.Networking
 {
-    public class DataReceivedEventArgs
+    public class ReceivedEventArgs
     {
-        internal DataReceivedEventArgs(EndPoint endpoint, byte[] data) {
+        internal ReceivedEventArgs(EndPoint endpoint, byte[] data) {
             EndPoint = endpoint;
             Bytes = data;
             Encoding = Encoding.GetEncoding("utf-8");
         }
 
-        internal DataReceivedEventArgs(EndPoint endpoint, byte[] data, Encoding encoding) {
+        internal ReceivedEventArgs(EndPoint endpoint, byte[] data, Encoding encoding) {
             EndPoint = endpoint;
             Bytes = data;
             Encoding = encoding;

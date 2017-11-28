@@ -10,7 +10,7 @@ namespace Boerman.Networking
     {
         StateObject _state;
 
-        public event EventHandler<DataReceivedEventArgs> DataReceived;
+        public event EventHandler<ReceivedEventArgs> Received;
         public event EventHandler<ConnectedEventArgs> Connected;
         public event EventHandler<DisconnectedEventArgs> Disconnected;
 
@@ -175,7 +175,7 @@ namespace Boerman.Networking
             byte[] received = new byte[bytesRead];
             Array.Copy(_state.ReceiveBuffer, received, bytesRead);
 
-            Common.InvokeEvent(this, DataReceived, new DataReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
+            Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
 
             _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), null);
         }

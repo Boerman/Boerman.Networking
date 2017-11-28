@@ -14,7 +14,7 @@ namespace Boerman.TcpServer
                 Console.WriteLine($"{e.TimeStamp}: {e.EndPoint} connected");
             };
 
-            server.DataReceived += (sender, e) =>
+            server.Received += (sender, e) =>
             {
                 Console.Write(e.Data);
             };

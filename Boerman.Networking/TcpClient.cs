@@ -112,7 +112,7 @@ namespace Boerman.Networking
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.TraceError(ex.ToString());
-                throw;
+                // Do not rethrow the error when trying to close a closed socket.
             }
         }
 

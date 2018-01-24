@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <PackOnBuild>true</PackOnBuild>
     <Authors>Corstian Boerman</Authors>
-    <PackageIconUrl>http://docs.boerman.co/images/emblem.svg</PackageIconUrl>
+    <PackageIconUrl>https://avatars2.githubusercontent.com/u/25320889</PackageIconUrl>
     <PackageLicenseUrl>https://github.com/Boerman/Boerman.Networking/blob/master/LICENSE.md</PackageLicenseUrl>
     <Owners>The Boerman Company</Owners>
     <PackageProjectUrl>http://docs.boerman.co/Libraries/Networking/getting-started/</PackageProjectUrl>

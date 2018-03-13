@@ -164,18 +164,18 @@ namespace Boerman.Networking
              * and that events are being fired to notify subscribers.
              */
 
-            if (!_state.Socket.IsConnected())
-            {
-                Close();
-                return;
-            }
-
             int bytesRead = _state.Socket.EndReceive(result);
 
             byte[] received = new byte[bytesRead];
             Array.Copy(_state.ReceiveBuffer, received, bytesRead);
 
             Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
+
+            if (!_state.Socket.IsConnected())
+            {
+                Close();
+                return;
+            }
 
             _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), null);
         }

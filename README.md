@@ -1,4 +1,4 @@
-<h1><img alt="boerman logo" src="https://avatars2.githubusercontent.com/u/25320889?s=50&v=4" /> Boerman.Networking</h1>
+<h1><img alt="boerman logo" src="https://avatars2.githubusercontent.com/u/25320889?s=30&v=4" /> Boerman.Networking</h1>
 
 ## Welcome!
 Thanks for checking out this library! For more in-depth documentation please check out [http://docs.boerman.co](http://docs.boerman.co/Libraries/Networking/getting-started/).

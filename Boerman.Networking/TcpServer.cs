@@ -203,18 +203,18 @@ namespace Boerman.Networking
             StateObject state = (StateObject)result.AsyncState;
             Socket handler = state.Socket;
 
-            if (!handler.IsConnected())
-            {
-                Disconnect(state.EndPoint);
-                return;
-            }
-
             int bytesRead = handler.EndReceive(result);
 
             byte[] received = new byte[bytesRead];
             Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
             Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
+
+            if (!handler.IsConnected())
+            {
+                Disconnect(state.EndPoint);
+                return;
+            }
 
             // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
             handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);

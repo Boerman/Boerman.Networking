@@ -29,16 +29,7 @@ namespace HttpRequestExample
 
             if (await client.Open(new DnsEndPoint("google.com", 80)))
             {
-                while (true) {
-                    var s = Console.ReadKey();
-                    await client.Send(s.KeyChar.ToString());
-                }
-
-                //await client.Send(@"GET / HTTP/1.1
-                                    //Host: google.com
-                                    //User-Agent: custom
-                                    //Accept: */*
-                                    //");
+                await client.Send("GET / HTTP/1.1\nHost: google.com\n\n");
             } else {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Connection could not be made");

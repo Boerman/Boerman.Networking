@@ -11,8 +11,8 @@
     <Title>Boerman.Networking</Title>
     <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
     <PackageId>Boerman.Networking</PackageId>
-    <PackageVersion>1.0.1</PackageVersion>
-    <PackageReleaseNotes>Will not throw an exception anymore when trying to close a closed socket</PackageReleaseNotes>
+    <PackageVersion>1.0.2</PackageVersion>
+    <PackageReleaseNotes>Fix an issue where the connection is closed before any content could be read from the client.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

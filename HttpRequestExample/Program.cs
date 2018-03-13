@@ -27,7 +27,7 @@ namespace HttpRequestExample
                 Console.ResetColor();
             };
 
-            if (await client.Open(new DnsEndPoint("google.com", 80)))
+            if (await client.Open(new DnsEndPoint("google.com", 443), true))
             {
                 await client.Send("GET / HTTP/1.1\nHost: google.com\n\n");
             } else {

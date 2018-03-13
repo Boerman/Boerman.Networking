@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,25 +17,24 @@ namespace Boerman.Networking
 
         public TcpClient()
         {
-            _state = new StateObject()
+            _state = new StateObject
             {
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
         public TcpClient(Encoding encoding) {
-            _state = new StateObject()
+            _state = new StateObject
             {
                 Encoding = encoding
             };
         }
 
-
         /// <summary>
         /// Open the connection to the remote endpoint.
         /// </summary>
         /// <returns>Boolean indicating whether the connection is open or not</returns>
-        public async Task<bool> Open(EndPoint endpoint)
+        public async Task<bool> Open(EndPoint endpoint, bool useSsl = false)
         {
             /*
              * To open a connection with a server is not exactly a synchronous 
@@ -76,15 +76,22 @@ namespace Boerman.Networking
                         
                         // Incoke the event to let the world know a connection has been made
                         Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
-                        
+
+                        if (useSsl)
+                        {
+                            _state.Stream = new SslStream(new NetworkStream(_state.Socket));
+                            ((SslStream)_state.Stream).AuthenticateAsClient("google.com");
+                        }
+                        else _state.Stream = new NetworkStream(_state.Socket);
+
                         // Start listening for new data
-                        _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), _state);
-                    
+                        _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), _state);
+                        
                     } catch (Exception ex) {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
                         return false;
                     }
-
+                    
                     return true;
                 },
                 null);
@@ -99,6 +106,9 @@ namespace Boerman.Networking
         {
             try
             {
+                _state.Stream.Dispose();
+                _state.Stream = null;
+
                 if (_state.Socket.IsConnected())
                 {
                     _state.Socket.Shutdown(SocketShutdown.Both);
@@ -137,24 +147,21 @@ namespace Boerman.Networking
 
             int dataLength = data.Length;
 
-            int bytesSent = await Task.Factory.FromAsync(
-                (callback, state) => _state.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state),
+            return await Task.Factory.FromAsync(
+                (callback, state) => _state.Stream.BeginWrite(data, 0, dataLength, new AsyncCallback(callback), state),
                 (arg) =>
                 {
                     try
                     {
-                        return _state.Socket.EndSend(arg);
+                        _state.Stream.EndWrite(arg);
+                        return true;
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
-                        return 0;
+                        return false;
                     }
                 }, null);
-
-            if (bytesSent == dataLength) return true;
-
-            return false;
         }
 
         void ReadCallback(IAsyncResult result)
@@ -164,7 +171,7 @@ namespace Boerman.Networking
              * and that events are being fired to notify subscribers.
              */
 
-            int bytesRead = _state.Socket.EndReceive(result);
+            int bytesRead = _state.Stream.EndRead(result);
 
             byte[] received = new byte[bytesRead];
             Array.Copy(_state.ReceiveBuffer, received, bytesRead);
@@ -177,7 +184,7 @@ namespace Boerman.Networking
                 return;
             }
 
-            _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), null);
+            _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
         }
     }
 }

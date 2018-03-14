@@ -236,10 +236,13 @@ namespace Boerman.Networking
 
             int bytesRead = state.Stream.EndRead(result);
 
-            byte[] received = new byte[bytesRead];
-            Array.Copy(state.ReceiveBuffer, received, bytesRead);
+            if (bytesRead > 0)
+            {
+                byte[] received = new byte[bytesRead];
+                Array.Copy(state.ReceiveBuffer, received, bytesRead);
 
-            Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
+                Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
+            }
 
             if (!state.Socket.IsConnected())
             {

@@ -130,18 +130,17 @@ namespace Boerman.Networking
         {
             try
             {
-                _state.Stream.Dispose();
-                _state.Stream = null;
-
                 if (_state.Socket.IsConnected())
                 {
                     _state.Socket.Shutdown(SocketShutdown.Both);
                     _state.Socket.Disconnect(false);
+                } else {
+                    _state.Stream.Dispose();
+                    _state.Socket.Dispose();
+                    _state.Stream = null;
+
+                    Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
                 }
-
-                _state.Socket.Dispose();
-
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
             }
             catch (Exception ex)
             {
@@ -204,7 +203,12 @@ namespace Boerman.Networking
 
             if (!_state.Socket.IsConnected())
             {
-                Close();
+                _state.Stream.Dispose();
+                _state.Socket.Dispose();
+                _state.Stream = null;
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
+
                 return;
             }
 

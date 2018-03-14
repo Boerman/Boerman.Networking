@@ -100,14 +100,13 @@ namespace Boerman.Networking
             {
                 client.Socket.Shutdown(SocketShutdown.Both);
                 client.Socket.Disconnect(false);
-            }
+                // The disposal of the socket will happen in the endread method
+            } else {
+                client.Stream.Dispose();
+                client.Socket.Dispose();
 
-            client.Socket.Dispose();
+                _handlers.TryRemove(endpoint, out _);
 
-            _handlers.TryRemove(endpoint, out _);
-
-            if (!cleanUpOnly)
-            {
                 Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
             }
         }
@@ -238,7 +237,13 @@ namespace Boerman.Networking
 
             if (!state.Socket.IsConnected())
             {
-                Disconnect(state.EndPoint);
+                state.Stream.Dispose();
+                state.Socket.Dispose();
+
+                _handlers.TryRemove(state.EndPoint, out _);
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(state.EndPoint));
+
                 return;
             }
 

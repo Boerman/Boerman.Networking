@@ -37,6 +37,7 @@ namespace HttpRequestExample
             }
 
             Console.ReadKey();
+            client.Close();
         }
     }
 }

@@ -11,8 +11,8 @@
     <Title>Boerman.Networking</Title>
     <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
     <PackageId>Boerman.Networking</PackageId>
-    <PackageVersion>1.0.3</PackageVersion>
-    <PackageReleaseNotes>Fix an issue where the connection is closed before any content could be read from the client.</PackageReleaseNotes>
+    <PackageVersion>1.1.0</PackageVersion>
+    <PackageReleaseNotes>The 1.1.0 version adds support for SSL/TLS secured TCP connections.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -26,5 +26,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="NetworkConnection.cs" />
+    <Compile Remove="SocketStream.cs" />
   </ItemGroup>
 </Project>

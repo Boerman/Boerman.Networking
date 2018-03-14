@@ -79,15 +79,39 @@ namespace Boerman.Networking
 
                         if (useSsl)
                         {
+                            string target = "";
+
+                            if (endpoint is DnsEndPoint)
+                            {
+                                target = ((DnsEndPoint)endpoint).Host;
+                            }
+                            else if (endpoint is IPEndPoint)
+                            {
+                                target = ((IPEndPoint)endpoint).Address.ToString();
+                            }
+                            else
+                            {
+                                throw new ArgumentException(nameof(endpoint));
+                            }
+
                             _state.Stream = new SslStream(new NetworkStream(_state.Socket));
-                            ((SslStream)_state.Stream).AuthenticateAsClient("google.com");
+
+                            // ToDo: Authenticate async
+                            ((SslStream)_state.Stream).AuthenticateAsClient(target);
                         }
-                        else _state.Stream = new NetworkStream(_state.Socket);
+                        else
+                        {
+                            _state.Stream = new NetworkStream(_state.Socket);
+                        }
 
                         // Start listening for new data
                         _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), _state);
                         
-                    } catch (Exception ex) {
+                    } 
+                    catch (ArgumentException) {
+                        throw;
+                    }
+                    catch (Exception ex) {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
                         return false;
                     }

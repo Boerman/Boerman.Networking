@@ -11,7 +11,7 @@
     <Title>Boerman.Networking</Title>
     <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
     <PackageId>Boerman.Networking</PackageId>
-    <PackageVersion>1.1.0</PackageVersion>
+    <PackageVersion>1.1.0-beta</PackageVersion>
     <PackageReleaseNotes>The 1.1.0 version adds support for SSL/TLS secured TCP connections.</PackageReleaseNotes>
   </PropertyGroup>
 

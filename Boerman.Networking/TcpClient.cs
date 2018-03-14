@@ -34,7 +34,9 @@ namespace Boerman.Networking
         /// Open the connection to the remote endpoint.
         /// </summary>
         /// <returns>Boolean indicating whether the connection is open or not</returns>
-        public async Task<bool> Open(EndPoint endpoint, bool useSsl = false)
+        public async Task<bool> Open(EndPoint endpoint, 
+                                     bool useSsl = false,
+                                     bool allowCertificateChainErrors = false)
         {
             /*
              * To open a connection with a server is not exactly a synchronous 
@@ -73,9 +75,6 @@ namespace Boerman.Networking
                     try
                     {
                         _state.Socket.EndConnect(arg);
-                        
-                        // Incoke the event to let the world know a connection has been made
-                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
 
                         if (useSsl)
                         {
@@ -94,15 +93,29 @@ namespace Boerman.Networking
                                 throw new ArgumentException(nameof(endpoint));
                             }
 
-                            _state.Stream = new SslStream(new NetworkStream(_state.Socket));
+                            _state.Stream = new SslStream(new NetworkStream(_state.Socket), true, (sender, certificate, chain, sslPolicyErrors) => {
+                                if (sslPolicyErrors == SslPolicyErrors.None) return true;
+                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) return true;
+                                
+                                return false;
+                            });
 
                             // ToDo: Authenticate async
-                            ((SslStream)_state.Stream).AuthenticateAsClient(target);
+                            try
+                            {
+                                // These errors can be mostly ignored but the connection should be closed
+                                ((SslStream)_state.Stream).AuthenticateAsClient(target);
+                            } catch {
+                                Close();
+                            }
                         }
                         else
                         {
                             _state.Stream = new NetworkStream(_state.Socket);
                         }
+
+                        // Incoke the event to let the world know a connection has been made
+                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
 
                         // Start listening for new data
                         _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), _state);

@@ -208,7 +208,13 @@ namespace Boerman.Networking
                 state.Stream = new SslStream(new NetworkStream(state.Socket));
 
                 // ToDo: Handle the ssl handshake async
-                ((SslStream)state.Stream).AuthenticateAsServer(_settings.Certificate);
+                try
+                {
+                    ((SslStream)state.Stream).AuthenticateAsServer(_settings.Certificate);
+                } catch {
+                    // These errors can be mostly ignored. Connection should be closed.
+                    Disconnect(state.EndPoint);
+                }
             } else {
                 state.Stream = new NetworkStream(state.Socket);
             }

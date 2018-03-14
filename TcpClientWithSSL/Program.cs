@@ -7,6 +7,17 @@ namespace TcpClientWithSSL
 {
     class Program
     {
+        /*
+         * This sample shows how a TCP client can connect to a server over an
+         * connection secured by SSL/TLS. This sample allows certificate chain
+         * errors (NOT recommended in production) in order to be able to connect
+         * with the server running on localhost.
+         * 
+         * Client authentication is currently not supported.
+         * 
+         * To see how to set up a TCP server which uses SSL/TLS see the
+         * TcpServerWithSSL project.
+         */
         static async Task Main(string[] args)
         {
             var tcpClient = new TcpClient();

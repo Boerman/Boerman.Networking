@@ -95,7 +95,11 @@ namespace Boerman.Networking
 
                             _state.Stream = new SslStream(new NetworkStream(_state.Socket), true, (sender, certificate, chain, sslPolicyErrors) => {
                                 if (sslPolicyErrors == SslPolicyErrors.None) return true;
-                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) return true;
+
+                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) {
+                                    System.Diagnostics.Trace.TraceWarning("Remote certificate chain errors are allowed and observed. It's STRONGLY RECOMMENDED to disallow chain errors in production!");
+                                    return true;
+                                }
                                 
                                 return false;
                             });

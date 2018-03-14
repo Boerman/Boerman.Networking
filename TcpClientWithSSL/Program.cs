@@ -23,7 +23,9 @@ namespace TcpClientWithSSL
                 Console.WriteLine("- Disconnected");
             };
 
-            await tcpClient.Open(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626), true);
+            await tcpClient.Open(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 2626), 
+                                 useSsl: true, 
+                                 allowCertificateChainErrors: true);
 
             while (true) {
                 await tcpClient.Send(Console.ReadKey().KeyChar.ToString());

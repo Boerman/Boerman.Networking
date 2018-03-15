@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
@@ -13,6 +14,7 @@ namespace Boerman.Networking
         }
 
         internal Socket Socket { get; set; }
+        internal Stream Stream { get; set; }
 
         internal int ReceiveBufferSize { get; }
 
@@ -23,5 +25,7 @@ namespace Boerman.Networking
         internal EndPoint EndPoint { get; set; }
 
         internal Encoding Encoding { get; set; }
+
+        internal bool UseSsl { get; set; }
     }
 }

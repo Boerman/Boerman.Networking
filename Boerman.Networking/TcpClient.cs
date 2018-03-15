@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,25 +17,26 @@ namespace Boerman.Networking
 
         public TcpClient()
         {
-            _state = new StateObject()
+            _state = new StateObject
             {
                 Encoding = Encoding.GetEncoding("utf-8")
             };
         }
 
         public TcpClient(Encoding encoding) {
-            _state = new StateObject()
+            _state = new StateObject
             {
                 Encoding = encoding
             };
         }
 
-
         /// <summary>
         /// Open the connection to the remote endpoint.
         /// </summary>
         /// <returns>Boolean indicating whether the connection is open or not</returns>
-        public async Task<bool> Open(EndPoint endpoint)
+        public async Task<bool> Open(EndPoint endpoint, 
+                                     bool useSsl = false,
+                                     bool allowCertificateChainErrors = false)
         {
             /*
              * To open a connection with a server is not exactly a synchronous 
@@ -73,18 +75,64 @@ namespace Boerman.Networking
                     try
                     {
                         _state.Socket.EndConnect(arg);
-                        
+
+                        if (useSsl)
+                        {
+                            string target = "";
+
+                            if (endpoint is DnsEndPoint)
+                            {
+                                target = ((DnsEndPoint)endpoint).Host;
+                            }
+                            else if (endpoint is IPEndPoint)
+                            {
+                                target = ((IPEndPoint)endpoint).Address.ToString();
+                            }
+                            else
+                            {
+                                throw new ArgumentException(nameof(endpoint));
+                            }
+
+                            _state.Stream = new SslStream(new NetworkStream(_state.Socket), true, (sender, certificate, chain, sslPolicyErrors) => {
+                                if (sslPolicyErrors == SslPolicyErrors.None) return true;
+
+                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) {
+                                    System.Diagnostics.Trace.TraceWarning("Remote certificate chain errors are allowed and observed. It's STRONGLY RECOMMENDED to disallow chain errors in production!");
+                                    return true;
+                                }
+                                
+                                return false;
+                            });
+
+                            // ToDo: Authenticate async
+                            try
+                            {
+                                // These errors can be mostly ignored but the connection should be closed
+                                ((SslStream)_state.Stream).AuthenticateAsClient(target);
+                            } catch {
+                                Close();
+                            }
+                        }
+                        else
+                        {
+                            _state.Stream = new NetworkStream(_state.Socket);
+                        }
+
                         // Incoke the event to let the world know a connection has been made
                         Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
-                        
+
                         // Start listening for new data
-                        _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), _state);
-                    
-                    } catch (Exception ex) {
+                        _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), _state);
+                        
+                    } 
+                    catch (ArgumentException) {
+                        throw;
+                    }
+                    catch (Exception ex) {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
                         return false;
                     }
-
+                    
                     return true;
                 },
                 null);
@@ -103,11 +151,13 @@ namespace Boerman.Networking
                 {
                     _state.Socket.Shutdown(SocketShutdown.Both);
                     _state.Socket.Disconnect(false);
+                } else {
+                    _state.Stream.Dispose();
+                    _state.Socket.Dispose();
+                    _state.Stream = null;
+
+                    Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
                 }
-
-                _state.Socket.Dispose();
-
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
             }
             catch (Exception ex)
             {
@@ -137,24 +187,21 @@ namespace Boerman.Networking
 
             int dataLength = data.Length;
 
-            int bytesSent = await Task.Factory.FromAsync(
-                (callback, state) => _state.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state),
+            return await Task.Factory.FromAsync(
+                (callback, state) => _state.Stream.BeginWrite(data, 0, dataLength, new AsyncCallback(callback), state),
                 (arg) =>
                 {
                     try
                     {
-                        return _state.Socket.EndSend(arg);
+                        _state.Stream.EndWrite(arg);
+                        return true;
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
-                        return 0;
+                        return false;
                     }
                 }, null);
-
-            if (bytesSent == dataLength) return true;
-
-            return false;
         }
 
         void ReadCallback(IAsyncResult result)
@@ -164,20 +211,28 @@ namespace Boerman.Networking
              * and that events are being fired to notify subscribers.
              */
 
-            int bytesRead = _state.Socket.EndReceive(result);
+            int bytesRead = _state.Stream.EndRead(result);
 
-            byte[] received = new byte[bytesRead];
-            Array.Copy(_state.ReceiveBuffer, received, bytesRead);
+            if (bytesRead > 0)
+            {
+                byte[] received = new byte[bytesRead];
+                Array.Copy(_state.ReceiveBuffer, received, bytesRead);
 
-            Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
+                Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
+            }
 
             if (!_state.Socket.IsConnected())
             {
-                Close();
+                _state.Stream.Dispose();
+                _state.Socket.Dispose();
+                _state.Stream = null;
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
+
                 return;
             }
 
-            _state.Socket.BeginReceive(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), null);
+            _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
         }
     }
 }

@@ -2,7 +2,9 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,20 +22,38 @@ namespace Boerman.Networking
         public event EventHandler<DisconnectedEventArgs> Disconnected;
         public event EventHandler<ConnectedEventArgs> Connected;
 
-        public TcpServer(IPEndPoint endpoint)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:Boerman.Networking.TcpServer"/> class.
+        /// </summary>
+        /// <param name="endpoint">The endpoint to listen on for incoming connections.</param>
+        /// <param name="certificate">The certificate to use in case you wish to use SSL/TLS.</param>
+        public TcpServer(IPEndPoint endpoint, 
+                         X509Certificate2 certificate = null)
         {
             _settings = new ConnectionSettings
             {
                 EndPoint = endpoint,
-                Encoding = Encoding.GetEncoding("utf-8")
+                Encoding = Encoding.GetEncoding("utf-8"),
+                UseSsl = certificate != null,
+                Certificate = certificate
             };
         }
 
-        public TcpServer(IPEndPoint endpoint, Encoding encoding) {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:Boerman.Networking.TcpServer"/> class.
+        /// </summary>
+        /// <param name="endpoint">The endpoint to listen on for incoming connections.</param>
+        /// <param name="encoding">The text encoding you wish to use for this connection.</param>
+        /// <param name="certificate">The certificate to use in case you wish to use SSL/TLS.</param>
+        public TcpServer(IPEndPoint endpoint, 
+                         Encoding encoding, 
+                         X509Certificate2 certificate = null) {
             _settings = new ConnectionSettings()
             {
                 EndPoint = endpoint,
-                Encoding = encoding
+                Encoding = encoding,
+                UseSsl = certificate != null,
+                Certificate = certificate
             };
         }
 
@@ -80,14 +100,13 @@ namespace Boerman.Networking
             {
                 client.Socket.Shutdown(SocketShutdown.Both);
                 client.Socket.Disconnect(false);
-            }
+                // The disposal of the socket will happen in the endread method
+            } else {
+                client.Stream.Dispose();
+                client.Socket.Dispose();
 
-            client.Socket.Dispose();
+                _handlers.TryRemove(endpoint, out _);
 
-            _handlers.TryRemove(endpoint, out _);
-
-            if (!cleanUpOnly)
-            {
                 Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
             }
         }
@@ -123,24 +142,21 @@ namespace Boerman.Networking
 
             int dataLength = data.Length;
 
-            int bytesSent = await Task.Factory.FromAsync(
-                (callback, state) => clientState.Socket.BeginSend(data, 0, dataLength, 0, new AsyncCallback(callback), state),
+            return await Task.Factory.FromAsync(
+                (callback, state) => clientState.Stream.BeginWrite(data, 0, dataLength, new AsyncCallback(callback), state),
                 (arg) =>
                 {
                     try
                     {
-                        return clientState.Socket.EndSend(arg);
+                        clientState.Stream.EndWrite(arg);
+                        return true;
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Trace.TraceError(ex.ToString());
-                        return 0;
+                        return false;
                     }
                 }, null);
-
-            if (bytesSent == dataLength) return true;
-
-            return false;
         }
 
         /// <summary>
@@ -187,12 +203,28 @@ namespace Boerman.Networking
                 EndPoint = handler.RemoteEndPoint
             };
 
+            // ToDo: Add functionality to automatically check whether to use an SSL connection or just ol' plain tcp connection.
+            if (_settings.UseSsl) {
+                state.Stream = new SslStream(new NetworkStream(state.Socket));
+
+                // ToDo: Handle the ssl handshake async
+                try
+                {
+                    ((SslStream)state.Stream).AuthenticateAsServer(_settings.Certificate);
+                } catch {
+                    // These errors can be mostly ignored. Connection should be closed.
+                    Disconnect(state.EndPoint);
+                }
+            } else {
+                state.Stream = new NetworkStream(state.Socket);
+            }
+
             _handlers.TryAdd(state.EndPoint, state);
 
             Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.EndPoint));
 
             try {
-                handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
+                state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
             } catch (Exception ex) {
                 System.Diagnostics.Trace.TraceError(ex.ToString());
             }
@@ -201,23 +233,31 @@ namespace Boerman.Networking
         internal void ReadCallback(IAsyncResult result)
         {
             StateObject state = (StateObject)result.AsyncState;
-            Socket handler = state.Socket;
 
-            int bytesRead = handler.EndReceive(result);
+            int bytesRead = state.Stream.EndRead(result);
 
-            byte[] received = new byte[bytesRead];
-            Array.Copy(state.ReceiveBuffer, received, bytesRead);
-
-            Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
-
-            if (!handler.IsConnected())
+            if (bytesRead > 0)
             {
-                Disconnect(state.EndPoint);
+                byte[] received = new byte[bytesRead];
+                Array.Copy(state.ReceiveBuffer, received, bytesRead);
+
+                Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
+            }
+
+            if (!state.Socket.IsConnected())
+            {
+                state.Stream.Dispose();
+                state.Socket.Dispose();
+
+                _handlers.TryRemove(state.EndPoint, out _);
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(state.EndPoint));
+
                 return;
             }
 
             // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
-            handler.BeginReceive(state.ReceiveBuffer, 0, state.ReceiveBufferSize, 0, new AsyncCallback(ReadCallback), state);
+            state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
         }
     }
 }

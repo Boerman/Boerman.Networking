@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackOnBuild>true</PackOnBuild>
     <Authors>Corstian Boerman</Authors>
     <PackageIconUrl>https://avatars2.githubusercontent.com/u/25320889</PackageIconUrl>
     <PackageLicenseUrl>https://github.com/Boerman/Boerman.Networking/blob/master/LICENSE.md</PackageLicenseUrl>
@@ -11,8 +10,9 @@
     <Title>Boerman.Networking</Title>
     <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
     <PackageId>Boerman.Networking</PackageId>
-    <PackageVersion>1.1.0-beta2</PackageVersion>
-    <PackageReleaseNotes>The 1.1.0 version adds support for SSL/TLS secured TCP connections.</PackageReleaseNotes>
+    <PackageVersion>1.1.1-beta2</PackageVersion>
+    <PackageReleaseNotes>The 1.1.1 version adds the IDisposable pattern to both client and server in order to make sure there are no lingering connections left when the application is shut down.</PackageReleaseNotes>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -21,9 +21,6 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>Latest</LangVersion>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="NuGet.Build.Packaging" Version="0.2.2" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Remove="NetworkConnection.cs" />
     <Compile Remove="SocketStream.cs" />

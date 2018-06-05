@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Boerman.Networking
 {
-    public class TcpClient
+    public class TcpClient : IDisposable
     {
         StateObject _state;
 
@@ -233,6 +233,11 @@ namespace Boerman.Networking
             }
 
             _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
+        }
+
+        public void Dispose()
+        {
+            Close();
         }
     }
 }

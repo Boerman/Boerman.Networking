@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Boerman.Networking
 {
-    public class TcpServer
+    public class TcpServer : IDisposable
     {
         readonly ConcurrentDictionary<EndPoint, StateObject> _handlers = new ConcurrentDictionary<EndPoint, StateObject>();
         readonly ManualResetEvent _tcpServerActive = new ManualResetEvent(false);
@@ -258,6 +258,11 @@ namespace Boerman.Networking
 
             // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
             state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

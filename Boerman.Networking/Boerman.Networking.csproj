@@ -1,28 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <Authors>Corstian Boerman</Authors>
-    <PackageIconUrl>https://avatars2.githubusercontent.com/u/25320889</PackageIconUrl>
-    <PackageLicenseUrl>https://github.com/Boerman/Boerman.Networking/blob/master/LICENSE.md</PackageLicenseUrl>
-    <Owners>The Boerman Company</Owners>
-    <PackageProjectUrl>http://docs.boerman.co/Libraries/Networking/getting-started/</PackageProjectUrl>
-    <Title>Boerman.Networking</Title>
-    <Description>The Boerman.Networking package contains a TCP server and client implementation. </Description>
-    <PackageId>Boerman.Networking</PackageId>
-    <PackageVersion>1.1.1-beta2</PackageVersion>
-    <PackageReleaseNotes>The 1.1.1 version adds the IDisposable pattern to both client and server in order to make sure there are no lingering connections left when the application is shut down.</PackageReleaseNotes>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-  </PropertyGroup>
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <LangVersion>Latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>Latest</LangVersion>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="NetworkConnection.cs" />
-    <Compile Remove="SocketStream.cs" />
-  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>1.1.2</Version>
+    <Title>Boerman.Networking</Title>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Corstian Boerman</Authors>
+    <Company>The Boerman Company</Company>
+    <PackageReleaseNotes>The 1.1.2 version fixes a bug related to forced disconnects [RST,ACK] and gracefully handles this now. Removed some code duplication, and this one should work well now.</PackageReleaseNotes>
+    <PackageIconUrl>https://avatars2.githubusercontent.com/u/25320889</PackageIconUrl>
+    <PackageLicenseUrl>https://github.com/Boerman/Boerman.Networking/blob/master/LICENSE.md</PackageLicenseUrl>
+    <PackageProjectUrl>http://docs.boerman.co/Libraries/Networking/getting-started/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Boerman/Boerman.Networking</RepositoryUrl>
+    <Description>This library provides a stable, fast and efficient TCP client/server library. Supports both plain and SSL TCP connections and is extremely easy to implement!</Description>
+    <Copyright>Corstian Boerman</Copyright>
+  </PropertyGroup>
 </Project>

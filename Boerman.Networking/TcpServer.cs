@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
@@ -69,7 +71,7 @@ namespace Boerman.Networking
                 listener.Bind(_settings.EndPoint);
                 listener.Listen(1000);
             } catch (Exception ex) {
-                System.Diagnostics.Trace.TraceError(ex.ToString());
+                Trace.TraceError(ex.ToString());
                 return false;
             }
 
@@ -101,14 +103,14 @@ namespace Boerman.Networking
                 client.Socket.Shutdown(SocketShutdown.Both);
                 client.Socket.Disconnect(false);
                 // The disposal of the socket will happen in the endread method
-            } else {
-                client.Stream.Dispose();
-                client.Socket.Dispose();
-
-                _handlers.TryRemove(endpoint, out _);
-
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
             }
+
+            client.Stream.Dispose();
+            client.Socket.Dispose();
+
+            _handlers.TryRemove(endpoint, out _);
+
+            Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
         }
 
         public void Disconnect(EndPoint endpoint)
@@ -226,7 +228,7 @@ namespace Boerman.Networking
             try {
                 state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
             } catch (Exception ex) {
-                System.Diagnostics.Trace.TraceError(ex.ToString());
+                Trace.TraceError(ex.ToString());
             }
         }
 
@@ -234,30 +236,36 @@ namespace Boerman.Networking
         {
             StateObject state = (StateObject)result.AsyncState;
 
-            int bytesRead = state.Stream.EndRead(result);
-
-            if (bytesRead > 0)
+            try
             {
-                byte[] received = new byte[bytesRead];
-                Array.Copy(state.ReceiveBuffer, received, bytesRead);
+                if (!state.Socket.IsConnected())
+                {
+                    Disconnect(state.EndPoint);
+                    return;
+                }
 
-                Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
-            }
+                int bytesRead = state.Stream.EndRead(result);
 
-            if (!state.Socket.IsConnected())
+                if (bytesRead > 0)
+                {
+                    byte[] received = new byte[bytesRead];
+                    Array.Copy(state.ReceiveBuffer, received, bytesRead);
+
+                    Common.InvokeEvent(this, Received, new ReceivedEventArgs(state.EndPoint, received, _settings.Encoding));
+                }
+
+                // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
+                state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
+            } catch (IOException ex) when (ex.InnerException is SocketException && ((SocketException)ex.InnerException).NativeErrorCode == 10054)
             {
-                state.Stream.Dispose();
-                state.Socket.Dispose();
-
-                _handlers.TryRemove(state.EndPoint, out _);
-
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(state.EndPoint));
-
-                return;
+                Debug.WriteLine(ex.ToString());
+                Disconnect(state.EndPoint);
             }
-
-            // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
-            state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
+                throw;
+            }
         }
 
         public void Dispose()

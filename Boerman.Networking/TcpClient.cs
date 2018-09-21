@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -97,7 +99,7 @@ namespace Boerman.Networking
                                 if (sslPolicyErrors == SslPolicyErrors.None) return true;
 
                                 if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) {
-                                    System.Diagnostics.Trace.TraceWarning("Remote certificate chain errors are allowed and observed. It's STRONGLY RECOMMENDED to disallow chain errors in production!");
+                                    Trace.TraceWarning("Remote certificate chain errors are allowed and observed. It's STRONGLY RECOMMENDED to disallow chain errors in production!");
                                     return true;
                                 }
                                 
@@ -129,7 +131,7 @@ namespace Boerman.Networking
                         throw;
                     }
                     catch (Exception ex) {
-                        System.Diagnostics.Trace.TraceError(ex.ToString());
+                        Trace.TraceError(ex.ToString());
                         return false;
                     }
                     
@@ -151,17 +153,17 @@ namespace Boerman.Networking
                 {
                     _state.Socket.Shutdown(SocketShutdown.Both);
                     _state.Socket.Disconnect(false);
-                } else {
-                    _state.Stream.Dispose();
-                    _state.Socket.Dispose();
-                    _state.Stream = null;
-
-                    Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
                 }
+
+                _state.Stream.Dispose();
+                _state.Socket.Dispose();
+                _state.Stream = null;
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.TraceError(ex.ToString());
+                Trace.TraceError(ex.ToString());
                 // Do not rethrow the error when trying to close a closed socket.
             }
         }
@@ -198,7 +200,7 @@ namespace Boerman.Networking
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Trace.TraceError(ex.ToString());
+                        Trace.TraceError(ex.ToString());
                         return false;
                     }
                 }, null);
@@ -210,29 +212,35 @@ namespace Boerman.Networking
              * The ReceiveCallback method makes sure incoming data is being read
              * and that events are being fired to notify subscribers.
              */
-
-            int bytesRead = _state.Stream.EndRead(result);
-
-            if (bytesRead > 0)
+            try
             {
-                byte[] received = new byte[bytesRead];
-                Array.Copy(_state.ReceiveBuffer, received, bytesRead);
+                if (!_state.Socket.IsConnected())
+                {
+                    Close();
+                    return;
+                }
 
-                Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
-            }
+                int bytesRead = _state.Stream.EndRead(result);
 
-            if (!_state.Socket.IsConnected())
+                if (bytesRead > 0)
+                {
+                    byte[] received = new byte[bytesRead];
+                    Array.Copy(_state.ReceiveBuffer, received, bytesRead);
+
+                    Common.InvokeEvent(this, Received, new ReceivedEventArgs(_state.EndPoint, received, _state.Encoding));
+                }
+
+                _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
+            } catch (IOException ex) when (ex.InnerException is SocketException && ((SocketException)ex.InnerException).NativeErrorCode == 10054)
             {
-                _state.Stream.Dispose();
-                _state.Socket.Dispose();
-                _state.Stream = null;
-
-                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(_state.EndPoint));
-
-                return;
+                Debug.WriteLine(ex.ToString());
+                Close();
             }
-
-            _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
+                throw;
+            }
         }
 
         public void Dispose()

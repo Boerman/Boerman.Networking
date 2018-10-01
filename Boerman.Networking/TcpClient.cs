@@ -64,17 +64,18 @@ namespace Boerman.Networking
              * 
              */
 
-            _state.EndPoint = endpoint;
+            try
+            {
+                _state.EndPoint = endpoint;
 
-            _state.Socket = new Socket(
-                AddressFamily.InterNetwork,
-                SocketType.Stream,
-                ProtocolType.Tcp);
+                _state.Socket = new Socket(
+                    AddressFamily.InterNetwork,
+                    SocketType.Stream,
+                    ProtocolType.Tcp);
 
-            bool isConnected = await Task.Factory.FromAsync(
-                (callback, state) => _state.Socket.BeginConnect(_state.EndPoint, new AsyncCallback(callback), state),
-                (arg) => {
-                    try
+                return await Task.Factory.FromAsync(
+                    (callback, state) => _state.Socket.BeginConnect(_state.EndPoint, new AsyncCallback(callback), state),
+                    (arg) =>
                     {
                         _state.Socket.EndConnect(arg);
 
@@ -82,66 +83,62 @@ namespace Boerman.Networking
                         {
                             string target = "";
 
-                            if (endpoint is DnsEndPoint)
-                            {
-                                target = ((DnsEndPoint)endpoint).Host;
-                            }
-                            else if (endpoint is IPEndPoint)
-                            {
-                                target = ((IPEndPoint)endpoint).Address.ToString();
-                            }
-                            else
-                            {
-                                throw new ArgumentException(nameof(endpoint));
-                            }
+                            if (endpoint is DnsEndPoint) target = ((DnsEndPoint)endpoint).Host;
+                            else if (endpoint is IPEndPoint) target = ((IPEndPoint)endpoint).Address.ToString();
+                            else throw new ArgumentException(nameof(endpoint));
 
-                            _state.Stream = new SslStream(new NetworkStream(_state.Socket), true, (sender, certificate, chain, sslPolicyErrors) => {
+                            _state.Stream = new SslStream(new NetworkStream(_state.Socket), true, (sender, certificate, chain, sslPolicyErrors) =>
+                            {
                                 if (sslPolicyErrors == SslPolicyErrors.None) return true;
 
-                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors) {
+                                if (allowCertificateChainErrors && sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors)
+                                {
                                     Trace.TraceWarning("Remote certificate chain errors are allowed and observed. It's STRONGLY RECOMMENDED to disallow chain errors in production!");
                                     return true;
                                 }
-                                
+
                                 return false;
                             });
 
                             // ToDo: Authenticate async
-                            try
-                            {
+                            try {
                                 // These errors can be mostly ignored but the connection should be closed
                                 ((SslStream)_state.Stream).AuthenticateAsClient(target);
-                            } catch {
+                            }
+                            catch
+                            {
                                 Close();
+                                return false;
                             }
                         }
                         else
                         {
                             _state.Stream = new NetworkStream(_state.Socket);
                         }
-
+                        
                         // Incoke the event to let the world know a connection has been made
-                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state.EndPoint));
+                        Common.InvokeEvent(this, Connected, new ConnectedEventArgs(_state));
 
                         // Start listening for new data
                         _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), _state);
-                        
-                    } 
-                    catch (ArgumentException) {
-                        throw;
-                    }
-                    catch (Exception ex) {
-                        Trace.TraceError(ex.ToString());
-                        return false;
-                    }
-                    
-                    return true;
-                },
-                null);
 
-            return isConnected;
+                        return true;
+                    },
+                    null);
+            }
+            catch (ArgumentException)
+            {
+                // ToDo: Determine whether we want to let it fail silently or whether we just want to throw this error.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
+                return false;
+            }
         }
 
+        // ToDo: Make sure that this method is only called once for a connection.
         /// <summary>
         /// Close the connection to the remote endpoint
         /// </summary>
@@ -231,7 +228,7 @@ namespace Boerman.Networking
                 }
 
                 _state.Stream.BeginRead(_state.ReceiveBuffer, 0, _state.ReceiveBufferSize, new AsyncCallback(ReadCallback), null);
-            } catch (IOException ex) when (ex.InnerException is SocketException && ((SocketException)ex.InnerException).NativeErrorCode == 10054)
+            } catch (IOException ex) when (ex.InnerException is SocketException)
             {
                 Debug.WriteLine(ex.ToString());
                 Close();

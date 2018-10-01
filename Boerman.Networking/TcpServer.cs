@@ -93,29 +93,30 @@ namespace Boerman.Networking
             _tcpServerActive.Set();
         }
 
-        private void Disconnect(EndPoint endpoint, bool cleanUpOnly) {
-            StateObject client;
-            _handlers.TryGetValue(endpoint, out client);
-            if (client == null) return;
-
-            if (client.Socket.IsConnected())
+        public void Disconnect(EndPoint endpoint) {
+            try
             {
-                client.Socket.Shutdown(SocketShutdown.Both);
-                client.Socket.Disconnect(false);
-                // The disposal of the socket will happen in the endread method
+                StateObject client;
+                _handlers.TryGetValue(endpoint, out client);
+                if (client == null) return;
+
+                if (client.Socket.IsConnected())
+                {
+                    client.Socket.Shutdown(SocketShutdown.Both);
+                    client.Socket.Disconnect(false);
+                    // The disposal of the socket will happen in the endread method
+                }
+
+                client.Stream.Dispose();
+                client.Socket.Dispose();
+
+                _handlers.TryRemove(endpoint, out _);
+
+                Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
+            } catch (Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
             }
-
-            client.Stream.Dispose();
-            client.Socket.Dispose();
-
-            _handlers.TryRemove(endpoint, out _);
-
-            Common.InvokeEvent(this, Disconnected, new DisconnectedEventArgs(client.EndPoint));
-        }
-
-        public void Disconnect(EndPoint endpoint)
-        {
-            Disconnect(endpoint, false);
         }
 
         /// <summary>
@@ -138,27 +139,27 @@ namespace Boerman.Networking
         /// <param name="data">Data.</param>
         public async Task<bool> Send(EndPoint endpoint, byte[] data)
         {
-            _handlers.TryGetValue(endpoint, out StateObject clientState);
+            try
+            {
+                _handlers.TryGetValue(endpoint, out StateObject clientState);
 
-            if (clientState == null || !clientState.Socket.IsConnected()) return false;
+                if (clientState == null || !clientState.Socket.IsConnected()) return false;
 
-            int dataLength = data.Length;
+                int dataLength = data.Length;
 
-            return await Task.Factory.FromAsync(
-                (callback, state) => clientState.Stream.BeginWrite(data, 0, dataLength, new AsyncCallback(callback), state),
-                (arg) =>
-                {
-                    try
+                return await Task.Factory.FromAsync(
+                    (callback, state) => clientState.Stream.BeginWrite(data, 0, dataLength, new AsyncCallback(callback), state),
+                    (arg) =>
                     {
                         clientState.Stream.EndWrite(arg);
                         return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Trace.TraceError(ex.ToString());
-                        return false;
-                    }
-                }, null);
+                    }, null);
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
+                return false;
+            }
         }
 
         /// <summary>
@@ -194,40 +195,48 @@ namespace Boerman.Networking
 
         internal void AcceptCallback(IAsyncResult result)
         {
-            var listener = ((Socket)result.AsyncState);
+            try
+            {
+                var listener = ((Socket)result.AsyncState);
 
-            // End the accept and get ready to accept a new connection.
-            Socket handler = listener.EndAccept(result);
-            listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+                // End the accept and get ready to accept a new connection.
+                Socket handler = listener.EndAccept(result);
+                listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
 
-            var state = new StateObject() {
-                Socket = handler,
-                EndPoint = handler.RemoteEndPoint
-            };
-
-            // ToDo: Add functionality to automatically check whether to use an SSL connection or just ol' plain tcp connection.
-            if (_settings.UseSsl) {
-                state.Stream = new SslStream(new NetworkStream(state.Socket));
-
-                // ToDo: Handle the ssl handshake async
-                try
+                var state = new StateObject()
                 {
-                    ((SslStream)state.Stream).AuthenticateAsServer(_settings.Certificate);
-                } catch {
-                    // These errors can be mostly ignored. Connection should be closed.
-                    Disconnect(state.EndPoint);
+                    Socket = handler,
+                    EndPoint = handler.RemoteEndPoint
+                };
+
+                // ToDo: Add functionality to automatically check whether to use an SSL connection or just ol' plain tcp connection.
+                if (_settings.UseSsl)
+                {
+                    state.Stream = new SslStream(new NetworkStream(state.Socket));
+
+                    // ToDo: Handle the ssl handshake async
+                    try
+                    {
+                        ((SslStream)state.Stream).AuthenticateAsServer(_settings.Certificate);
+                    }
+                    catch
+                    {
+                        // These errors can be mostly ignored. Connection should be closed.
+                        Disconnect(state.EndPoint);
+                    }
                 }
-            } else {
-                state.Stream = new NetworkStream(state.Socket);
-            }
+                else
+                {
+                    state.Stream = new NetworkStream(state.Socket);
+                }
 
-            _handlers.TryAdd(state.EndPoint, state);
+                _handlers.TryAdd(state.EndPoint, state);
 
-            Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state.EndPoint));
+                Common.InvokeEvent(this, Connected, new ConnectedEventArgs(state));
 
-            try {
                 state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 Trace.TraceError(ex.ToString());
             }
         }
@@ -256,7 +265,7 @@ namespace Boerman.Networking
 
                 // Honestly, I'd love to call this earlier but we're pretty prone to synchronization issues here...
                 state.Stream.BeginRead(state.ReceiveBuffer, 0, state.ReceiveBufferSize, new AsyncCallback(ReadCallback), state);
-            } catch (IOException ex) when (ex.InnerException is SocketException && ((SocketException)ex.InnerException).NativeErrorCode == 10054)
+            } catch (IOException ex) when (ex.InnerException is SocketException)
             {
                 Debug.WriteLine(ex.ToString());
                 Disconnect(state.EndPoint);
